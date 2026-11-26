@@ -1,0 +1,3710 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Рик и Морти">
+    <meta name="theme-color" content="#0b0f1c">
+    <link id="apple-touch-icon-link" rel="apple-touch-icon" sizes="512x512">
+    <link id="favicon-link" rel="icon" type="image/png">
+    <link id="manifest-link" rel="manifest">
+    <title>Рик и Морти: Гараж, Цитадель и RP-Реальность (2.5D)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --portal-green: #97ce4c;
+            --portal-neon: #39ff14;
+            --rick-blue: #a6eee6;
+            --morty-yellow: #f0e14a;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #2f8e3d;
+            color: #ffffff;
+            font-family: 'Trebuchet MS', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            touch-action: none;
+        }
+
+        #game-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            background-color: #2f8e3d;
+            cursor: crosshair;
+        }
+
+        .font-comic {
+            font-family: Impact, 'Arial Black', 'Trebuchet MS', sans-serif;
+            letter-spacing: 0.05em;
+        }
+
+        .font-mono-tech {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        .comic-box {
+            border: 3px solid #000000;
+            box-shadow: 4px 4px 0px #000000;
+        }
+
+        .portal-border {
+            border: 2.5px solid var(--portal-neon);
+            box-shadow: 0 0 22px rgba(57, 255, 20, 0.45);
+        }
+
+        #joystick-zone {
+            position: fixed;
+            bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+            left: calc(18px + env(safe-area-inset-left, 0px));
+            width: 106px;
+            height: 106px;
+            border-radius: 9999px;
+            background: rgba(15, 23, 42, 0.78);
+            border: 2px solid rgba(166, 238, 230, 0.6);
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+        }
+
+        #joystick-zone:active {
+            cursor: grabbing;
+        }
+
+        #joystick-knob {
+            width: 42px;
+            height: 42px;
+            border-radius: 9999px;
+            background: radial-gradient(circle at 35% 35%, #a6eee6, #2d8a80);
+            border: 2.5px solid #000000;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+            pointer-events: none;
+            transform: translate(0px, 0px);
+        }
+
+        @keyframes pulseMic {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.75); }
+            50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+        }
+
+        .mic-recording {
+            animation: pulseMic 1.2s infinite;
+            background-color: #ef4444 !important;
+            color: #ffffff !important;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0c101d; }
+        ::-webkit-scrollbar-thumb { background: #39ff14; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <!-- ПОЛНОЭКРАННЫЙ 2.5D ИГРОВОЙ ХОЛСТ -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- ВЕРХНИЙ HUD -->
+    <header style="padding-top: max(8px, env(safe-area-inset-top, 8px));" class="fixed top-0 left-0 right-0 z-20 px-2 sm:px-4 pb-2 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <!-- Бейдж текущей локации -->
+        <div class="pointer-events-auto bg-[#111827]/95 comic-box rounded-2xl px-3 py-2 flex items-center gap-2.5 max-w-[66vw] sm:max-w-md">
+            <div class="w-9 h-9 rounded-full bg-[#39ff14] border-2 border-black flex items-center justify-center shrink-0 shadow-[0_0_12px_#39ff14]">
+                <span id="hud-dim-code" class="text-black font-comic text-sm leading-none">C-137</span>
+            </div>
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <h1 id="hud-dim-title" class="font-comic text-base sm:text-xl text-[#97ce4c] tracking-wider truncate leading-tight">
+                        Гараж Смитов и Лужайка (C-137)
+                    </h1>
+                    <span id="gun-status-badge" class="text-[10px] font-mono-tech bg-amber-500/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 rounded shrink-0">
+                        Пушка: на столе
+                    </span>
+                </div>
+                <p id="hud-dim-subtitle" class="text-[11px] text-[#a6eee6] truncate">
+                    Забери пушку с верстака слева или выйди погулять на зелёную траву!
+                </p>
+            </div>
+        </div>
+
+        <!-- Кнопки управления -->
+        <div class="pointer-events-auto flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+            <button id="btn-portal-gun" onclick="handlePortalGunButtonClick()" class="bg-[#232b47] text-gray-200 font-comic text-base sm:text-lg px-3 py-2 rounded-2xl comic-box transition active:scale-95 flex items-center gap-1.5" title="Портальная пушка [P]">
+                <span>🔫</span> <span id="btn-portal-label">Взять пушку</span>
+            </button>
+
+            <button id="btn-talk-mode" onclick="openDialogueModal('talk')" class="bg-[#38bdf8] hover:brightness-110 text-black font-bold text-xs sm:text-sm px-3 py-2 rounded-2xl comic-box transition active:scale-95 flex items-center gap-1" title="Обычный разговор без изменения мира [T]">
+                <span>💬</span> <span class="hidden sm:inline">Разговор (T)</span>
+            </button>
+
+            <button id="btn-voice-chat" onclick="toggleVoiceRecognition('hud')" class="bg-[#a6eee6] hover:brightness-110 text-black font-bold text-xs sm:text-sm px-3 py-2 rounded-2xl comic-box transition active:scale-95 flex items-center gap-1" title="Голосовой ввод [V]">
+                <span>🎤</span> <span class="hidden md:inline" id="voice-btn-text">Голос (V)</span>
+            </button>
+
+            <button id="btn-rp-action" onclick="openDialogueModal('rp')" class="bg-gradient-to-r from-[#f0e14a] to-[#f59e0b] hover:brightness-110 text-black font-bold text-xs sm:text-sm px-3 py-2 rounded-2xl comic-box transition active:scale-95 flex items-center gap-1" title="RP-Действие — меняет мир и персонажей [R]">
+                <span>🎭</span> <span class="hidden sm:inline">RP-Действие (R)</span>
+            </button>
+
+            <button id="tts-btn" onclick="toggleTts()" class="bg-[#1b233d] hover:bg-[#273357] text-[#39ff14] px-2.5 py-2 rounded-2xl comic-box text-xs font-bold transition active:scale-95" title="Озвучка голосов">
+                🗣️ Вкл
+            </button>
+
+            <button id="sound-btn" onclick="toggleSound()" class="bg-[#1b233d] hover:bg-[#273357] text-white p-2 rounded-2xl comic-box text-xs sm:text-sm transition active:scale-95" title="Звуковые эффекты">
+                🔊
+            </button>
+
+            <button onclick="openIconPreviewModal()" class="bg-[#1b233d] hover:bg-[#273357] text-[#97ce4c] font-bold px-2.5 py-2 rounded-2xl comic-box text-xs sm:text-sm transition active:scale-95 flex items-center gap-1" title="Иконка для экрана Домой (Safari)">
+                <span>📲</span> <span class="hidden lg:inline">На экран</span>
+            </button>
+
+            <button onclick="openModal('help-modal')" class="bg-[#1b233d] hover:bg-[#273357] text-[#a6eee6] font-bold px-2.5 py-2 rounded-2xl comic-box text-xs sm:text-sm transition active:scale-95" title="Управление">
+                ❓
+            </button>
+        </div>
+    </header>
+
+    <!-- ПОДСКАЗКА ВЗАИМОДЕЙСТВИЯ ПО ЦЕНТРУ СНИЗУ -->
+    <div id="interact-prompt" class="fixed bottom-36 sm:bottom-32 left-1/2 -translate-x-1/2 z-20 hidden">
+        <button onclick="triggerNearestInteraction()" class="bg-[#111827]/95 hover:bg-[#1e293b] text-white border-2 border-[#39ff14] shadow-[0_0_18px_rgba(57,255,20,0.6)] px-4 py-2 rounded-full flex items-center gap-2 text-xs sm:text-sm font-bold transition active:scale-95">
+            <span class="bg-[#39ff14] text-black font-mono-tech px-2 py-0.5 rounded-md text-xs">F</span>
+            <span id="interact-prompt-text">Осмотреть / Поговорить</span>
+        </button>
+    </div>
+
+    <!-- КОМПАКТНАЯ ПАНЕЛЬ ДИАЛОГОВ СПРАВА СНИЗУ -->
+    <aside class="fixed bottom-3 right-3 left-36 sm:left-auto sm:w-[445px] z-20 pointer-events-none flex flex-col items-end">
+        <div class="pointer-events-auto w-full bg-[#0f172a]/95 comic-box rounded-2xl p-2.5 border-[#a6eee6]">
+            <div class="flex items-center justify-between mb-1.5 gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#39ff14] animate-pulse shrink-0"></span>
+                    <span class="text-[11px] font-mono-tech uppercase text-[#a6eee6] font-bold truncate">Рик & ИИ-Морти</span>
+                    <span id="morty-mood-badge" class="hidden md:inline text-[10px] bg-[#f0e14a]/20 text-[#f0e14a] border border-[#f0e14a]/40 px-1.5 py-0.2 rounded truncate">Морти: Любопытство</span>
+                </div>
+                <div class="flex items-center bg-[#080b12] rounded-xl p-0.5 border border-slate-700 shrink-0">
+                    <button id="hud-pill-talk" onclick="setInteractionMode('talk')" class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#38bdf8] text-black transition">
+                        💬 Разговор
+                    </button>
+                    <button id="hud-pill-rp" onclick="setInteractionMode('rp')" class="px-2 py-0.5 rounded-lg text-[10px] font-bold text-gray-300 hover:text-white transition">
+                        🎭 RP-Действие
+                    </button>
+                </div>
+            </div>
+            <div id="dialogue-feed" class="space-y-1 max-h-20 overflow-y-auto pr-1 text-xs leading-snug">
+                <p class="text-[#a6eee6]"><b>Рик:</b> *Ик!* Морти, подойди к Роботу для масла или забери портальную пушку с верстака слева!</p>
+                <p class="text-[#f0e14a]"><b>Морти:</b> О боже, Рик, как же классно выйти из гаража на свежую зелёную траву!</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ВИРТУАЛЬНЫЙ ДЖОЙСТИК -->
+    <div id="joystick-zone" title="Тяни для передвижения">
+        <div id="joystick-knob"></div>
+    </div>
+
+    <!-- МОДАЛКА 1: ПОРТАЛЬНАЯ ПУШКА -->
+    <div id="portal-modal" class="fixed inset-0 bg-black/80 z-40 hidden items-center justify-center p-4">
+        <div class="bg-[#13192e] comic-box portal-border rounded-3xl max-w-lg w-full p-5 relative">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-full bg-[#39ff14] border-2 border-black flex items-center justify-center text-black font-bold text-lg">🌀</div>
+                    <div>
+                        <h2 class="font-comic text-2xl text-[#39ff14] leading-none">ПОРТАЛЬНАЯ ПУШКА C-137</h2>
+                        <p class="text-xs text-gray-400">Впиши или надиктуй голосом координаты приключения</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('portal-modal')" class="bg-red-500 hover:bg-red-400 text-white font-bold w-8 h-8 rounded-full border-2 border-black">✕</button>
+            </div>
+
+            <div class="relative mb-3">
+                <textarea id="portal-prompt-input" rows="3" placeholder="Опиши локацию или приключение (без случайных монстров)..." class="w-full bg-[#080b12] text-white border-2 border-[#39ff14] rounded-2xl p-3 pr-12 text-sm focus:outline-none resize-none">Цитадель Риков: Фабрика вафель Простого Рика, бар Цитадели и панорамные окна в космос</textarea>
+                <button id="btn-portal-mic" type="button" onclick="toggleVoiceRecognition('portal')" class="absolute bottom-3 right-3 bg-[#1e2747] hover:bg-[#2b3866] text-[#39ff14] border border-[#39ff14] w-9 h-9 rounded-full flex items-center justify-center text-base transition" title="Надиктовать координаты голосом">
+                    🎤
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <span class="text-[11px] text-gray-400 block mb-1.5">Быстрые координаты:</span>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="fillPortalPrompt('Цитадель Риков: Фабрика вафель Простого Рика, бар Цитадели и панорамные окна в космос')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#39ff14] font-bold px-2.5 py-1 rounded-xl border border-[#39ff14]/40">🧇 Цитадель Риков</button>
+                    <button type="button" onclick="fillPortalPrompt('Совет Риков: Зал заседаний Цитадели и патруль Риков-копов')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#a6eee6] font-bold px-2.5 py-1 rounded-xl border border-[#a6eee6]/40">🏛️ Совет Риков</button>
+                    <button type="button" onclick="fillPortalPrompt('Межгалактическая аркада Блипс энд Читс с неоновыми автоматами')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#f0e14a] px-2.5 py-1 rounded-xl border border-[#f0e14a]/30">🕹️ Блипс энд Читс</button>
+                    <button type="button" onclick="returnToGarageDirect(); closeModal('portal-modal');" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-gray-300 px-2.5 py-1 rounded-xl border border-gray-500/40">🏠 Вернуться в Гараж Смитов</button>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="createPortalFromPrompt()" class="flex-1 bg-gradient-to-r from-[#39ff14] to-[#97ce4c] hover:brightness-110 text-black font-comic text-xl py-2.5 rounded-2xl comic-box transition active:scale-95">
+                    ⚡ ОТКРЫТЬ ПОРТАЛ ПЕРЕД РИКОМ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА 2: РАЗДЕЛЬНЫЙ ДИАЛОГ («💬 Разговор» vs «🎭 RP-Действие») -->
+    <div id="chat-modal" class="fixed inset-0 bg-black/80 z-40 hidden items-center justify-center p-4">
+        <div id="chat-modal-card" class="bg-[#13192e] comic-box border-[#38bdf8] rounded-3xl max-w-lg w-full p-5 relative">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                    <span id="chat-modal-icon" class="text-2xl">💬</span>
+                    <div>
+                        <h3 id="chat-modal-title" class="font-comic text-2xl text-[#38bdf8] leading-none">ОБЫЧНЫЙ РАЗГОВОР</h3>
+                        <p id="chat-modal-desc" class="text-[11px] text-gray-300">Мир НЕ меняется — Рик и Морти просто отвечают на твои слова.</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('chat-modal')" class="bg-red-500 text-white font-bold w-8 h-8 rounded-full border-2 border-black">✕</button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 bg-[#080b12] p-1.5 rounded-2xl border border-slate-700 mb-3">
+                <button type="button" id="modal-tab-talk" onclick="setInteractionMode('talk')" class="py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-[#38bdf8] text-black transition">
+                    <span>💬</span> Обычный разговор
+                </button>
+                <button type="button" id="modal-tab-rp" onclick="setInteractionMode('rp')" class="py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 text-gray-300 hover:text-white transition">
+                    <span>🎭</span> RP-Действие (Меняет мир)
+                </button>
+            </div>
+
+            <div class="relative mb-3">
+                <textarea id="chat-input" rows="3" placeholder="Напиши или надиктуй реплику для Рика и Морти..." class="w-full bg-[#080b12] text-white border-2 border-[#38bdf8] rounded-2xl p-3 pr-12 text-sm focus:outline-none resize-none"></textarea>
+                <button id="btn-modal-mic" type="button" onclick="toggleVoiceRecognition('modal-chat')" class="absolute bottom-3 right-3 bg-[#1e2747] hover:bg-[#2b3866] text-[#a6eee6] border border-[#a6eee6] w-9 h-9 rounded-full flex items-center justify-center text-base transition" title="Надиктовать голосом">
+                    🎤
+                </button>
+            </div>
+
+            <div id="rp-presets-panel" class="mb-3.5 hidden">
+                <span class="text-[11px] text-[#f0e14a] font-bold block mb-1.5">Быстрые RP-команды (изменяют сцену и персонажей):</span>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="triggerQuickRpPreset('Рик стал огурчиком!')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#39ff14] font-semibold px-2.5 py-1 rounded-xl border border-[#39ff14]/40">🥒 Рик стал огурчиком</button>
+                    <button type="button" onclick="triggerQuickRpPreset('Появились 8 разных Риков из портала: Ковбой-Рик, Токсичный, Киборг и Дуфус Рик!')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#a6eee6] font-semibold px-2.5 py-1 rounded-xl border border-[#a6eee6]/40">🧪 8 разных Риков</button>
+                    <button type="button" onclick="triggerQuickRpPreset('Поставить 3 мощных кондиционера на полную мощность!')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#38bdf8] font-semibold px-2.5 py-1 rounded-xl border border-[#38bdf8]/40">❄️ Поставить 3 кондиционера</button>
+                    <button type="button" onclick="triggerQuickRpPreset('Появилась Джессика из портала!')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#f472b6] font-semibold px-2.5 py-1 rounded-xl border border-[#f472b6]/40">👩 Появилась Джессика</button>
+                    <button type="button" onclick="triggerQuickRpPreset('Морти стал деревом')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#97ce4c] font-semibold px-2.5 py-1 rounded-xl border border-[#97ce4c]/40">🌳 Морти стал деревом</button>
+                    <button type="button" onclick="triggerQuickRpPreset('Морти прыгнул в портал и привёл 20 злых Морти без футболки')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#f87171] font-semibold px-2.5 py-1 rounded-xl border border-[#f87171]/40">😈 20 злых Морти без футболки</button>
+                    <button type="button" onclick="triggerQuickRpPreset('Прилетел Птичья Личность и Сквончи')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#fbbf24] font-semibold px-2.5 py-1 rounded-xl border border-[#fbbf24]/40">🦅 Птичья Личность и Сквончи</button>
+                    <button type="button" onclick="triggerQuickRpPreset('Призван Совет Риков и Рики-копы')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#c084fc] font-semibold px-2.5 py-1 rounded-xl border border-[#c084fc]/40">🏛️ Совет Риков</button>
+                    <button type="button" onclick="triggerQuickRpPreset('Вернуть Рику и Морти обычный облик и убрать всех призванных')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-gray-300 px-2.5 py-1 rounded-xl border border-gray-500/40">🔄 Сбросить сцену</button>
+                </div>
+            </div>
+
+            <div id="talk-presets-panel" class="mb-3.5">
+                <span class="text-[11px] text-[#38bdf8] font-bold block mb-1.5">Темы для разговора (без изменения сцены):</span>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="triggerQuickTalkPreset('Эй, Рик, о чём ты думаешь? Пойдём в Цитадель!')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#a6eee6] px-2.5 py-1 rounded-xl border border-[#a6eee6]/30">🗣️ Спросить Рика</button>
+                    <button type="button" onclick="triggerQuickTalkPreset('Морти, как тебе прогулка на свежей траве перед гаражом?')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#f0e14a] px-2.5 py-1 rounded-xl border border-[#f0e14a]/30">😰 Спросить Морти</button>
+                    <button type="button" onclick="triggerQuickTalkPreset('Морти, что ты думаешь о Джессике?')" class="text-xs bg-[#1e2645] hover:bg-[#2a3661] text-[#f472b6] px-2.5 py-1 rounded-xl border border-[#f472b6]/30">💕 Поговорить о Джессике</button>
+                </div>
+            </div>
+
+            <button id="chat-submit-btn" onclick="submitUserDialogue()" class="w-full bg-[#38bdf8] hover:brightness-110 text-black font-comic text-xl py-2.5 rounded-2xl comic-box transition active:scale-95">
+                💬 СКАЗАТЬ В РАЗГОВОРЕ
+            </button>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА 3: ПОМОЩЬ И УПРАВЛЕНИЕ -->
+    <div id="help-modal" class="fixed inset-0 bg-black/80 z-40 hidden items-center justify-center p-4">
+        <div class="bg-[#13192e] comic-box border-[#a6eee6] rounded-3xl max-w-md w-full p-5 relative">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-comic text-2xl text-[#a6eee6]">УПРАВЛЕНИЕ И РЕЖИМЫ</h3>
+                <button onclick="closeModal('help-modal')" class="bg-red-500 text-white font-bold w-8 h-8 rounded-full border-2 border-black">✕</button>
+            </div>
+            <ul class="space-y-2 text-xs sm:text-sm text-gray-200">
+                <li>🚶 <b>Ходьба Рика:</b> клавиши <code class="text-[#39ff14]">WASD</code> / стрелки, клик по полу/траве или джойстик слева снизу. Морти бежит следом.</li>
+                <li>🤖 <b>Живые диалоги:</b> подойди к Роботу для масла, верстаку или любому персонажу — они сами заговорят! Нажми <code class="text-[#39ff14]">F</code>, чтобы продолжить разговор.</li>
+                <li>🔫 <b>Портальная пушка:</b> забери с верстака в гараже и нажми <code class="text-[#39ff14]">P</code>, чтобы открыть портал в Цитадель Риков.</li>
+                <li>💬 <b>Обычный разговор (<code class="text-[#38bdf8]">T</code>):</b> общение с Риком и Морти без изменения мира.</li>
+                <li>🎭 <b>RP-Действие (<code class="text-[#f0e14a]">R</code>):</b> меняет сцену: <i>«Рик стал огурчиком»</i>, <i>«8 разных Риков»</i>, <i>«Поставить 3 кондиционера»</i>, <i>«Появилась Джессика»</i> или <i>«20 злых Морти без футболки»</i>!</li>
+                <li>📲 <b>Иконка на экран iPhone/Safari:</b> нажми <code class="text-[#97ce4c]">📲 На экран</code> сверху, чтобы посмотреть иконку Рика и Морти для домашнего экрана.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- МОДАЛКА 4: ПРЕВЬЮ ИКОНКИ SAFARI («НА ЭКРАН ДОМОЙ») -->
+    <div id="icon-modal" class="fixed inset-0 bg-black/80 z-40 hidden items-center justify-center p-4">
+        <div class="bg-[#13192e] comic-box border-[#97ce4c] rounded-3xl max-w-sm w-full p-5 relative text-center">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-comic text-2xl text-[#97ce4c]">ИКОНКА ДЛЯ SAFARI</h3>
+                <button onclick="closeModal('icon-modal')" class="bg-red-500 text-white font-bold w-8 h-8 rounded-full border-2 border-black">✕</button>
+            </div>
+            <div class="flex flex-col items-center mb-3">
+                <div class="p-2 bg-[#080b12] rounded-[34px] border-2 border-[#39ff14] shadow-[0_0_25px_rgba(57,255,20,0.4)] mb-2">
+                    <img id="app-icon-preview" alt="Иконка Рик и Морти" class="w-32 h-32 rounded-[26px] block">
+                </div>
+                <span class="text-xs font-bold text-white">Рик и Морти</span>
+                <span class="text-[10px] text-gray-400">512×512 Apple Touch Icon + PWA</span>
+            </div>
+            <div class="bg-[#080b12] border border-slate-700 rounded-2xl p-3 text-left text-xs text-gray-200 space-y-1.5 mb-3">
+                <p class="font-bold text-[#a6eee6]">Как добавить на экран iPhone / iPad:</p>
+                <p>1. Открой этот сайт в браузере <b>Safari</b>.</p>
+                <p>2. Нажми кнопку <b>«Поделиться»</b> (квадрат со стрелкой вверх) внизу экрана.</p>
+                <p>3. Выбери <b>«На экран „Домой“»</b> — эта иконка с Риком и Морти установится автоматически!</p>
+            </div>
+            <button onclick="closeModal('icon-modal')" class="w-full bg-gradient-to-r from-[#39ff14] to-[#97ce4c] text-black font-comic text-lg py-2 rounded-2xl comic-box">
+                ПОНЯТНО, В ИГРУ!
+            </button>
+        </div>
+    </div>
+
+    <!-- ВСПЛЫВАЮЩАЯ КАРТОЧКА ОСМОТРА ОБЪЕКТА / NPC -->
+    <div id="interaction-card" class="fixed top-20 left-1/2 -translate-x-1/2 z-30 hidden max-w-md w-[92vw] bg-[#111827]/95 comic-box border-[#a6eee6] rounded-3xl p-4 shadow-2xl">
+        <div class="flex items-start justify-between gap-2 mb-1.5">
+            <span id="icard-title" class="font-comic text-xl text-[#39ff14] tracking-wide">Объект</span>
+            <button onclick="closeInteractionCard()" class="text-gray-400 hover:text-white text-sm font-bold px-2">✕</button>
+        </div>
+        <p id="icard-body" class="text-xs sm:text-sm text-gray-100 leading-relaxed mb-2.5 whitespace-pre-line"></p>
+        <div class="bg-[#080b12] border-l-4 border-[#f0e14a] p-2.5 rounded-r-xl">
+            <span class="text-[10px] font-bold uppercase text-[#f0e14a] block">Реакция Морти:</span>
+            <p id="icard-morty" class="text-xs text-gray-200 italic"></p>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. БЕЗОПАСНЫЕ ХЕЛПЕРЫ CANVAS (БЕЗ ctx.roundRect)
+        // ==========================================
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawRoundRect(c, x, y, w, h, r) {
+            const width = Math.max(0.1, w);
+            const height = Math.max(0.1, h);
+            const radius = Math.max(0.1, Math.min(r || 0.1, width / 2, height / 2));
+            c.beginPath();
+            c.moveTo(x + radius, y);
+            c.lineTo(x + width - radius, y);
+            c.quadraticCurveTo(x + width, y, x + width, y + radius);
+            c.lineTo(x + width, y + height - radius);
+            c.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            c.lineTo(x + radius, y + height);
+            c.quadraticCurveTo(x, y + height, x, y + height - radius);
+            c.lineTo(x, y + radius);
+            c.quadraticCurveTo(x, y, x + radius, y);
+            c.closePath();
+        }
+
+        function safeArc(c, x, y, r, startAngle = 0, endAngle = Math.PI * 2) {
+            c.arc(x, y, Math.max(0.1, r), startAngle, endAngle);
+        }
+
+        function safeEllipse(c, x, y, rx, ry, rot = 0, start = 0, end = Math.PI * 2) {
+            c.ellipse(x, y, Math.max(0.1, rx), Math.max(0.1, ry), rot, start, end);
+        }
+
+        // ==========================================
+        // 2. ГЕНЕРАТОР АРТ-ИКОНКИ 512x512 ДЛЯ SAFARI / IOS
+        // ==========================================
+        let generatedAppIconDataUrl = "";
+
+        function generateSafariAppIcon() {
+            try {
+                const iconCanvas = document.createElement('canvas');
+                iconCanvas.width = 512;
+                iconCanvas.height = 512;
+                const ic = iconCanvas.getContext('2d');
+                if (!ic) return;
+
+                // Космический фон
+                const bgGrad = ic.createRadialGradient(256, 256, 30, 256, 256, 360);
+                bgGrad.addColorStop(0, "#192847");
+                bgGrad.addColorStop(0.65, "#0d1326");
+                bgGrad.addColorStop(1, "#060812");
+                ic.fillStyle = bgGrad;
+                ic.fillRect(0, 0, 512, 512);
+
+                // Звёзды
+                const stars = [
+                    [68, 82, 4], [435, 74, 5], [90, 415, 4], [428, 420, 4],
+                    [256, 52, 3], [54, 240, 3], [458, 230, 3], [150, 120, 2.5], [375, 135, 3]
+                ];
+                ic.fillStyle = "#ffffff";
+                for (const [sx, sy, sr] of stars) {
+                    ic.beginPath();
+                    safeArc(ic, sx, sy, sr);
+                    ic.fill();
+                }
+
+                // Неоновый портал на фоне
+                const portalGrad = ic.createRadialGradient(256, 260, 18, 256, 260, 210);
+                portalGrad.addColorStop(0, "#ffffff");
+                portalGrad.addColorStop(0.32, "#39ff14");
+                portalGrad.addColorStop(0.72, "#97ce4c");
+                portalGrad.addColorStop(1, "rgba(57, 255, 20, 0)");
+                ic.fillStyle = portalGrad;
+                ic.beginPath();
+                safeArc(ic, 256, 260, 210);
+                ic.fill();
+
+                // Спиральные завихрения портала
+                ic.strokeStyle = "#064e3b";
+                ic.lineWidth = 8;
+                for (let i = 0; i < 4; i++) {
+                    ic.beginPath();
+                    safeArc(ic, 256, 260, 68 + i * 32, i * 1.1, i * 1.1 + Math.PI * 1.25);
+                    ic.stroke();
+                }
+
+                // --- РИК (слева, крупным планом) ---
+                ic.save();
+                ic.translate(185, 315);
+                ic.lineWidth = 7;
+                ic.strokeStyle = "#000000";
+
+                ic.fillStyle = "#ffffff";
+                drawRoundRect(ic, -78, 45, 156, 160, 28);
+                ic.fill();
+                ic.stroke();
+
+                ic.fillStyle = "#a6eee6";
+                ic.fillRect(-26, 48, 52, 155);
+
+                // Острые голубые волосы Рика
+                ic.fillStyle = "#a6eee6";
+                ic.beginPath();
+                ic.moveTo(0, -185);
+                ic.lineTo(-42, -132);
+                ic.lineTo(-98, -144);
+                ic.lineTo(-65, -92);
+                ic.lineTo(-104, -52);
+                ic.lineTo(-68, -22);
+                ic.lineTo(68, -22);
+                ic.lineTo(104, -52);
+                ic.lineTo(65, -92);
+                ic.lineTo(98, -144);
+                ic.lineTo(42, -132);
+                ic.closePath();
+                ic.fill();
+                ic.stroke();
+
+                // Голова Рика
+                ic.fillStyle = "#e8cbb1";
+                drawRoundRect(ic, -50, -125, 100, 145, 48);
+                ic.fill();
+                ic.stroke();
+
+                // Монобровь Рика
+                ic.strokeStyle = "#a6eee6";
+                ic.lineWidth = 12;
+                ic.beginPath();
+                ic.moveTo(-34, -76);
+                ic.lineTo(34, -76);
+                ic.stroke();
+
+                // Глаза Рика
+                ic.fillStyle = "#ffffff";
+                ic.strokeStyle = "#000000";
+                ic.lineWidth = 5;
+                ic.beginPath();
+                safeArc(ic, -20, -54, 18);
+                safeArc(ic, 20, -54, 18);
+                ic.fill();
+                ic.stroke();
+
+                ic.fillStyle = "#000000";
+                ic.beginPath();
+                safeArc(ic, -18, -54, 4);
+                safeArc(ic, 22, -54, 4);
+                ic.fill();
+
+                // Рот и зелёная слюна
+                ic.beginPath();
+                ic.moveTo(-22, -14);
+                ic.quadraticCurveTo(0, -24, 24, -12);
+                ic.stroke();
+
+                ic.fillStyle = "#39ff14";
+                ic.beginPath();
+                safeEllipse(ic, 14, -4, 7, 13);
+                ic.fill();
+
+                // Портальная пушка в руке Рика
+                ic.fillStyle = "#f8fafc";
+                drawRoundRect(ic, -96, 82, 66, 36, 10);
+                ic.fill();
+                ic.stroke();
+                ic.fillStyle = "#39ff14";
+                ic.beginPath();
+                safeArc(ic, -64, 74, 15);
+                ic.fill();
+                ic.stroke();
+                ic.restore();
+
+                // --- МОРТИ (справа снизу) ---
+                ic.save();
+                ic.translate(345, 365);
+                ic.lineWidth = 6.5;
+                ic.strokeStyle = "#000000";
+
+                ic.fillStyle = "#f0e14a";
+                drawRoundRect(ic, -64, 38, 128, 130, 26);
+                ic.fill();
+                ic.stroke();
+
+                ic.fillStyle = "#8c5828";
+                ic.beginPath();
+                safeArc(ic, 0, -55, 68);
+                ic.fill();
+                ic.stroke();
+
+                ic.fillStyle = "#f2d3b3";
+                ic.beginPath();
+                safeArc(ic, 0, -40, 56);
+                ic.fill();
+                ic.stroke();
+
+                ic.fillStyle = "#ffffff";
+                ic.lineWidth = 4.5;
+                ic.beginPath();
+                safeArc(ic, -18, -44, 16);
+                safeArc(ic, 18, -44, 16);
+                ic.fill();
+                ic.stroke();
+
+                ic.fillStyle = "#000000";
+                ic.beginPath();
+                safeArc(ic, -20, -44, 3.5);
+                safeArc(ic, 16, -44, 3.5);
+                ic.fill();
+
+                ic.beginPath();
+                ic.moveTo(-14, -12);
+                ic.quadraticCurveTo(0, -22, 14, -12);
+                ic.stroke();
+                ic.restore();
+
+                ic.strokeStyle = "#39ff14";
+                ic.lineWidth = 14;
+                ic.strokeRect(7, 7, 498, 498);
+
+                generatedAppIconDataUrl = iconCanvas.toDataURL("image/png");
+
+                const appleLink = document.getElementById('apple-touch-icon-link');
+                const favLink = document.getElementById('favicon-link');
+                const previewImg = document.getElementById('app-icon-preview');
+                if (appleLink) appleLink.href = generatedAppIconDataUrl;
+                if (favLink) favLink.href = generatedAppIconDataUrl;
+                if (previewImg) previewImg.src = generatedAppIconDataUrl;
+
+                const manifestObj = {
+                    name: "Рик и Морти: 2.5D Приключения",
+                    short_name: "Рик и Морти",
+                    start_url: ".",
+                    display: "standalone",
+                    background_color: "#0b0f1c",
+                    theme_color: "#0b0f1c",
+                    icons: [{ src: generatedAppIconDataUrl, sizes: "512x512", type: "image/png" }]
+                };
+                const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: "application/manifest+json" });
+                const manifestLink = document.getElementById('manifest-link');
+                if (manifestLink) manifestLink.href = URL.createObjectURL(manifestBlob);
+            } catch (_) {}
+        }
+
+        function openIconPreviewModal() {
+            if (!generatedAppIconDataUrl) generateSafariAppIcon();
+            openModal('icon-modal');
+        }
+
+        let viewportW = 800;
+        let viewportH = 600;
+
+        function resizeCanvas() {
+            const cw = canvas.clientWidth;
+            const ch = canvas.clientHeight;
+            viewportW = cw > 0 ? cw : (window.innerWidth || 800);
+            viewportH = ch > 0 ? ch : (window.innerHeight || 600);
+            canvas.width = viewportW;
+            canvas.height = viewportH;
+        }
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            render();
+        });
+
+        // ==========================================
+        // 3. GEMINI API + ЛОКАЛЬНЫЕ МИРЫ (ЦИТАДЕЛЬ И ДР.)
+        // ==========================================
+        const GEMINI_API = "";
+        const GEMINI_MODEL = "gemini-2.5-flash";
+
+        function safeParseJson(rawText) {
+            if (!rawText || typeof rawText !== 'string') return null;
+            try {
+                return JSON.parse(rawText.trim());
+            } catch (_) {
+                const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                try {
+                    return JSON.parse(cleaned);
+                } catch (__) {
+                    const firstBrace = cleaned.indexOf('{');
+                    const lastBrace = cleaned.lastIndexOf('}');
+                    if (firstBrace !== -1 && lastBrace > firstBrace) {
+                        try {
+                            return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+                        } catch (___) {
+                            return null;
+                        }
+                    }
+                    return null;
+                }
+            }
+        }
+
+        async function callGeminiSafe(payload, timeoutMs = 7500) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API}`;
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("Empty response");
+                return text;
+            } catch (err) {
+                clearTimeout(timer);
+                throw err;
+            }
+        }
+
+        function buildCitadelWorldData() {
+            return {
+                code: "CITADEL",
+                title: "Цитадель Риков",
+                storySummary: "Неоновый мегаполис Совета Риков: фабрика вафель, бар Цитадели и панорамные окна в космос.",
+                groundColor: "#14213d",
+                gridColor: "#0e172b",
+                accentColor: "#39ff14",
+                skyHorizon: "#090d1a",
+                isCitadel: true,
+                decorColor: "#1e293b",
+                mortyArrivalLine: "О боже, Рик, мы в Цитадели! Смотри на эти панорамные окна в космос... Только давай не попадаться копам-Рикам!",
+                mortyMood: "Волнение",
+                entities: [
+                    {
+                        kind: "PROP", shape: "WAFFLE_MACHINE", name: "Фабрика вафель Простого Рика",
+                        color: "#334155", accent: "#f59e0b",
+                        description: "Знаменитый конвейер Цитадели, выпекающий вафли со вкусом воспоминаний Простого Рика о семье.",
+                        mortyReaction: "Боже, Рик, они буквально выкачивают воспоминания Простого Рика ради сладкой глазури!"
+                    },
+                    {
+                        kind: "NPC", shape: "COP_RICK", name: "Офицер Рик-Коп (J-22)",
+                        color: "#1d4ed8", accent: "#a6eee6",
+                        description: "Патрульный Цитадели в синей форме с лазерной дубинкой. Следит за порядком в секторе.",
+                        mortyReaction: "Тише, Рик, спрячь флягу! У нас в Цитадели ещё три неоплаченных штрафа за парковку корабля!"
+                    },
+                    {
+                        kind: "NPC", shape: "WORKER_RICK", name: "Бармен Рик (Бар Цитадели)",
+                        color: "#475569", accent: "#facc15",
+                        description: "Местный бармен Цитадели, разливающий межгалактические коктейли для уставших Риков и Морти.",
+                        mortyReaction: "Мне пожалуйста обычный лимонад без калаксианских примесей, ладно?"
+                    },
+                    {
+                        kind: "PROP", shape: "AIR_CONDITIONER", name: "Промышленный кондиционер Цитадели",
+                        color: "#cbd5e1", accent: "#38bdf8",
+                        description: "Мощный охладитель воздуха с вращающимися турбинами, поддерживающий прохладу на фабрике вафель.",
+                        mortyReaction: "Бр-р-р, Рик, от этого кондиционера прямо иней на бровях!"
+                    },
+                    {
+                        kind: "NPC", shape: "COUNCIL_RICK", name: "Советник Рик",
+                        color: "#64748b", accent: "#39ff14",
+                        description: "Представитель Совета Риков в парадной мантии, изучающий межпространственные логи.",
+                        mortyReaction: "Ой-ой, только не спорь с Советом, Рик, мы же пришли просто погулять!"
+                    }
+                ]
+            };
+        }
+
+        function buildCustomWorldFallback(userIdea) {
+            if (/цитадел|вафл|совет рик/i.test(userIdea)) return buildCitadelWorldData();
+
+            const shortName = userIdea.length > 34 ? userIdea.slice(0, 34) + "…" : userIdea;
+            return {
+                code: "X-" + (100 + (userIdea.length * 17) % 899),
+                title: shortName,
+                storySummary: `Измерение по координатам: «${userIdea}»`,
+                groundColor: "#243046",
+                gridColor: "#192233",
+                accentColor: "#39ff14",
+                skyHorizon: "#101724",
+                isCitadel: false,
+                decorColor: "#6366f1",
+                mortyArrivalLine: `Ого, Рик, мы реально попали в «${shortName}»! И никаких случайных монстров, фух!`,
+                mortyMood: "Любопытство",
+                entities: [
+                    {
+                        kind: "NPC", shape: "MORTY_CITIZEN", name: "Местный житель сектора",
+                        color: "#0ea5e9", accent: "#39ff14",
+                        description: `Дружелюбный обитатель измерения «${userIdea}», изучающий гостей из C-137.`,
+                        mortyReaction: "Привет! Мы с миром, мой дедушка просто настраивал портальную пушку!"
+                    },
+                    {
+                        kind: "PROP", shape: "DORPEIKA_MACHINE", name: "Терминал реальности",
+                        color: "#334155", accent: "#f0e14a",
+                        description: "Интерактивный пульт управления атмосферой и событиями этого карманного измерения.",
+                        mortyReaction: "Рик, не нажимай красную кнопку, давай сначала просто осмотримся!"
+                    },
+                    {
+                        kind: "PROP", shape: "CRYSTAL", name: "Энергетический кристалл",
+                        color: "#8b5cf6", accent: "#a6eee6",
+                        description: "Светящийся калаксианский обелиск, поддерживающий стабильность портала.",
+                        mortyReaction: "Выглядит круто! Намного уютнее, чем очередная ловушка."
+                    }
+                ]
+            };
+        }
+
+        // ==========================================
+        // 4. ГОЛОСОВОЙ ЧАТ, TTS И ЗВУКОВЫЕ ЭФФЕКТЫ
+        // ==========================================
+        let ttsEnabled = true;
+        let soundEnabled = true;
+        let audioCtx = null;
+        let isListening = false;
+        let recognition = null;
+        let activeVoiceTarget = 'hud';
+
+        function initAudio() {
+            try {
+                if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (_) {}
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-btn').textContent = soundEnabled ? '🔊' : '🔇';
+        }
+
+        function toggleTts() {
+            ttsEnabled = !ttsEnabled;
+            document.getElementById('tts-btn').textContent = ttsEnabled ? '🗣️ Вкл' : '🗣️ Выкл';
+            try {
+                if (!ttsEnabled && 'speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
+            } catch (_) {}
+        }
+
+        function speakCharacterLine(character, text) {
+            if (!ttsEnabled || !('speechSynthesis' in window)) return;
+            try {
+                const cleanText = text.replace(/\*[^*]+\*/g, '').trim();
+                if (!cleanText) return;
+
+                const utter = new SpeechSynthesisUtterance(cleanText);
+                utter.lang = 'ru-RU';
+
+                const voices = window.speechSynthesis.getVoices() || [];
+                const ruVoice = voices.find(v => v.lang && v.lang.toLowerCase().includes('ru'));
+                if (ruVoice) utter.voice = ruVoice;
+
+                if (character === 'rick') {
+                    utter.pitch = 0.78;
+                    utter.rate = 1.12;
+                } else if (character === 'robot') {
+                    utter.pitch = 0.55;
+                    utter.rate = 0.92;
+                } else {
+                    utter.pitch = 1.35;
+                    utter.rate = 1.06;
+                }
+                window.speechSynthesis.speak(utter);
+            } catch (_) {}
+        }
+
+        const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognitionAPI) {
+            try {
+                recognition = new SpeechRecognitionAPI();
+                recognition.lang = 'ru-RU';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    isListening = true;
+                    updateMicButtonsState(true);
+                };
+
+                recognition.onend = () => {
+                    isListening = false;
+                    updateMicButtonsState(false);
+                };
+
+                recognition.onerror = () => {
+                    isListening = false;
+                    updateMicButtonsState(false);
+                    if (activeVoiceTarget === 'hud') {
+                        openDialogueModal(state.interactionMode);
+                        addDialogueLog("Система", "Микрофон недоступен в этом окне — введи текст вручную!", "text-gray-400");
+                    }
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results?.[0]?.[0]?.transcript || "";
+                    if (!transcript.trim()) return;
+
+                    if (activeVoiceTarget === 'portal') {
+                        document.getElementById('portal-prompt-input').value = transcript;
+                        playSfx('talk');
+                    } else if (activeVoiceTarget === 'modal-chat') {
+                        document.getElementById('chat-input').value = transcript;
+                        submitUserDialogue();
+                    } else {
+                        processUserMessage(transcript, state.interactionMode);
+                    }
+                };
+            } catch (_) {
+                recognition = null;
+            }
+        }
+
+        function updateMicButtonsState(recording) {
+            const topBtn = document.getElementById('btn-voice-chat');
+            const topText = document.getElementById('voice-btn-text');
+            const portalMic = document.getElementById('btn-portal-mic');
+            const modalMic = document.getElementById('btn-modal-mic');
+
+            if (recording) {
+                topBtn.classList.add('mic-recording');
+                if (topText) topText.textContent = 'Слушаю...';
+                if (portalMic) portalMic.classList.add('mic-recording');
+                if (modalMic) modalMic.classList.add('mic-recording');
+            } else {
+                topBtn.classList.remove('mic-recording');
+                if (topText) topText.textContent = 'Голос (V)';
+                if (portalMic) portalMic.classList.remove('mic-recording');
+                if (modalMic) modalMic.classList.remove('mic-recording');
+            }
+        }
+
+        function toggleVoiceRecognition(target = 'hud') {
+            initAudio();
+            activeVoiceTarget = target;
+
+            if (!recognition) {
+                if (target === 'hud') {
+                    openDialogueModal(state.interactionMode);
+                    addDialogueLog("Система", "Голосовой ввод недоступен в этом браузере — используй текстовый ввод.", "text-gray-400");
+                }
+                return;
+            }
+
+            if (isListening) {
+                try { recognition.stop(); } catch (_) {}
+            } else {
+                try {
+                    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                    recognition.start();
+                } catch (_) {
+                    if (target === 'hud') openDialogueModal(state.interactionMode);
+                }
+            }
+        }
+
+        function playSfx(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'portal') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(140, now);
+                    osc.frequency.exponentialRampToValueAtTime(680, now + 0.35);
+                    osc.frequency.exponentialRampToValueAtTime(180, now + 0.68);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.7);
+                    osc.start(now);
+                    osc.stop(now + 0.7);
+                } else if (type === 'pickup') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.exponentialRampToValueAtTime(760, now + 0.22);
+                    gain.gain.setValueAtTime(0.11, now);
+                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.24);
+                    osc.start(now);
+                    osc.stop(now + 0.24);
+                } else if (type === 'step') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(105 + Math.random() * 20, now);
+                    osc.frequency.exponentialRampToValueAtTime(52, now + 0.04);
+                    gain.gain.setValueAtTime(0.025, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                    osc.start(now);
+                    osc.stop(now + 0.04);
+                } else if (type === 'talk') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(410, now);
+                    osc.frequency.setValueAtTime(500, now + 0.06);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.14);
+                    osc.start(now);
+                    osc.stop(now + 0.14);
+                } else if (type === 'transform') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.exponentialRampToValueAtTime(920, now + 0.25);
+                    osc.frequency.exponentialRampToValueAtTime(340, now + 0.45);
+                    gain.gain.setValueAtTime(0.13, now);
+                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.48);
+                    osc.start(now);
+                    osc.stop(now + 0.48);
+                } else if (type === 'explosion') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(140, now);
+                    osc.frequency.exponentialRampToValueAtTime(32, now + 0.42);
+                    gain.gain.setValueAtTime(0.16, now);
+                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.45);
+                    osc.start(now);
+                    osc.stop(now + 0.45);
+                }
+            } catch (_) {}
+        }
+
+        // ==========================================
+        // 5. СОСТОЯНИЕ ИГРЫ И ПЕРЕКЛЮЧЕНИЕ РЕЖИМОВ (TALK vs RP)
+        // ==========================================
+        const WORLD_W = 1900;
+        const WORLD_H = 1450;
+
+        const MORTY_AMBIENT_THOUGHTS = [
+            "О боже, Рик, трава тут такая зелёная... Даже не верится, что мы не в смертельной ловушке!",
+            "Интересно, а Джерри заметит, если мы откроем портал прямо посреди лужайки?",
+            "Рик, ты точно проверил заряд портальной пушки?",
+            "Может, слетаем в Цитадель или проверим RP-реальность?"
+        ];
+
+        const state = {
+            interactionMode: 'talk',
+            hasPortalGun: false,
+            currentDimension: null,
+            screenFlash: 0,
+            activeProximityId: null,
+            lastProximityTalkTime: 0,
+            entityDialogueIndexes: {},
+            ambientThoughtTimer: 14,
+            ambientThoughtIdx: 0,
+            rick: {
+                x: 950,
+                y: 660,
+                speed: 255,
+                facing: 1,
+                walkPhase: 0,
+                speechBubble: "*Ик!* Забери пушку с верстака слева или выйди на траву!",
+                speechTimer: 6.5,
+                appearance: "normal",
+                shirtless: false
+            },
+            morty: {
+                x: 890,
+                y: 675,
+                facing: 1,
+                walkPhase: 0,
+                speechBubble: "О боже, Рик, как же классно выйти из гаража на свежую зелёную траву!",
+                speechTimer: 6.5,
+                mood: "Любопытство",
+                isThinking: false,
+                appearance: "normal",
+                shirtless: false,
+                eyepatch: false,
+                scale: 1
+            },
+            rickTrail: [],
+            portal: null,
+            entities: [],
+            spawnedChars: [],
+            particles: [],
+            grassTufts: [],
+            nearestEntity: null,
+            lastStepSoundTime: 0
+        };
+
+        function setInteractionMode(mode) {
+            state.interactionMode = mode;
+
+            const pillTalk = document.getElementById('hud-pill-talk');
+            const pillRp = document.getElementById('hud-pill-rp');
+            if (mode === 'talk') {
+                pillTalk.className = "px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#38bdf8] text-black transition";
+                pillRp.className = "px-2 py-0.5 rounded-lg text-[10px] font-bold text-gray-300 hover:text-white transition";
+            } else {
+                pillTalk.className = "px-2 py-0.5 rounded-lg text-[10px] font-bold text-gray-300 hover:text-white transition";
+                pillRp.className = "px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#f0e14a] text-black transition";
+            }
+
+            const card = document.getElementById('chat-modal-card');
+            const icon = document.getElementById('chat-modal-icon');
+            const title = document.getElementById('chat-modal-title');
+            const desc = document.getElementById('chat-modal-desc');
+            const tabTalk = document.getElementById('modal-tab-talk');
+            const tabRp = document.getElementById('modal-tab-rp');
+            const input = document.getElementById('chat-input');
+            const rpPresets = document.getElementById('rp-presets-panel');
+            const talkPresets = document.getElementById('talk-presets-panel');
+            const submitBtn = document.getElementById('chat-submit-btn');
+
+            if (mode === 'talk') {
+                card.style.borderColor = "#38bdf8";
+                icon.textContent = "💬";
+                title.textContent = "ОБЫЧНЫЙ РАЗГОВОР";
+                title.className = "font-comic text-2xl text-[#38bdf8] leading-none";
+                desc.textContent = "Мир НЕ меняется — Рик и Морти просто отвечают на твои слова.";
+                tabTalk.className = "py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-[#38bdf8] text-black transition";
+                tabRp.className = "py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 text-gray-300 hover:text-white transition";
+                input.style.borderColor = "#38bdf8";
+                input.placeholder = "Спроси о чём-нибудь Рика и Морти (сцена останется прежней)...";
+                rpPresets.classList.add('hidden');
+                talkPresets.classList.remove('hidden');
+                submitBtn.className = "w-full bg-[#38bdf8] hover:brightness-110 text-black font-comic text-xl py-2.5 rounded-2xl comic-box transition active:scale-95";
+                submitBtn.textContent = "💬 СКАЗАТЬ В РАЗГОВОРЕ";
+            } else {
+                card.style.borderColor = "#f0e14a";
+                icon.textContent = "🎭";
+                title.textContent = "RP-ДЕЙСТВИЕ (ИЗМЕНЕНИЕ РЕАЛЬНОСТИ)";
+                title.className = "font-comic text-2xl text-[#f0e14a] leading-none";
+                desc.textContent = "Опиши любое событие — оно физически произойдёт на 2.5D-карте!";
+                tabTalk.className = "py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 text-gray-300 hover:text-white transition";
+                tabRp.className = "py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-gradient-to-r from-[#f0e14a] to-[#f59e0b] text-black transition";
+                input.style.borderColor = "#f0e14a";
+                input.placeholder = "Например: «Рик стал огурчиком», «8 разных Риков», «Поставить 3 кондиционера» или «20 злых Морти без футболки»...";
+                rpPresets.classList.remove('hidden');
+                talkPresets.classList.add('hidden');
+                submitBtn.className = "w-full bg-gradient-to-r from-[#f0e14a] to-[#f59e0b] hover:brightness-110 text-black font-comic text-xl py-2.5 rounded-2xl comic-box transition active:scale-95";
+                submitBtn.textContent = "⚡ ВЫПОЛНИТЬ RP-ДЕЙСТВИЕ";
+            }
+        }
+
+        function openDialogueModal(mode) {
+            setInteractionMode(mode);
+            openModal('chat-modal');
+            setTimeout(() => document.getElementById('chat-input').focus(), 60);
+        }
+
+        function triggerQuickRpPreset(text) {
+            setInteractionMode('rp');
+            document.getElementById('chat-input').value = text;
+            submitUserDialogue();
+        }
+
+        function triggerQuickTalkPreset(text) {
+            setInteractionMode('talk');
+            document.getElementById('chat-input').value = text;
+            submitUserDialogue();
+        }
+
+        function submitUserDialogue() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = "";
+            closeModal('chat-modal');
+            processUserMessage(text, state.interactionMode);
+        }
+
+        function spawnParticles(x, y, color, count = 20) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 35 + Math.random() * 145;
+                state.particles.push({
+                    x,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 25,
+                    life: 0.45 + Math.random() * 0.55,
+                    color,
+                    size: 3 + Math.random() * 4.5
+                });
+            }
+        }
+
+        // ==========================================
+        // 6. RP REALITY ENGINE: РИКИ, МОРТИ, КОНДИЦИОНЕРЫ И ГЕРОИ
+        // ==========================================
+        function parseLocalRpEffects(text) {
+            const low = text.toLowerCase();
+            const effects = {
+                rickAppearance: null,
+                rickShirtless: null,
+                mortyAppearance: null,
+                mortyShirtless: null,
+                mortyScale: null,
+                spawns: [],
+                explosion: false,
+                resetAll: false
+            };
+
+            if (/сброс|вернуть.*обычн|убрать.*всех|нормальн.*облик|очистить/i.test(low)) {
+                effects.resetAll = true;
+                return effects;
+            }
+
+            // 1. Трансформации РИКА
+            if (/рик.*(огур|pickle)|(огур|pickle).*рик/i.test(low)) {
+                effects.rickAppearance = "pickle";
+            } else if (/рик.*(киборг|робот|металл)/i.test(low)) {
+                effects.rickAppearance = "cyborg";
+            } else if (/маленьк.*рик|рик.*маленьк|tiny rick/i.test(low)) {
+                effects.rickAppearance = "tiny";
+            } else if (/токсичн.*рик|рик.*токсичн/i.test(low)) {
+                effects.rickAppearance = "toxic";
+            } else if (/рик.*дерев/i.test(low)) {
+                effects.rickAppearance = "tree";
+            } else if (/рик.*призрак/i.test(low)) {
+                effects.rickAppearance = "ghost";
+            } else if (/рик.*обычн|рик.*человек/i.test(low)) {
+                effects.rickAppearance = "normal";
+            }
+
+            if (/рик.*без (халат|рубашк|футболк|одежд)/i.test(low)) {
+                effects.rickShirtless = true;
+            } else if (/рик.*одел|вернуть.*халат/i.test(low)) {
+                effects.rickShirtless = false;
+            }
+
+            // 2. Трансформации МОРТИ
+            if (/морти.*дерев|стал.*дерев/i.test(low)) {
+                effects.mortyAppearance = "tree";
+            } else if (/морти.*(огур|pickle)/i.test(low)) {
+                effects.mortyAppearance = "pickle";
+            } else if (/морти.*(робот|киборг)/i.test(low)) {
+                effects.mortyAppearance = "robot";
+            } else if (/морти.*кроненберг|монстр/i.test(low)) {
+                effects.mortyAppearance = "cronenberg";
+            } else if (/морти.*призрак/i.test(low)) {
+                effects.mortyAppearance = "ghost";
+            } else if (/морти.*гигант|огромн.*морти/i.test(low)) {
+                effects.mortyAppearance = "giant";
+                effects.mortyScale = 1.65;
+            } else if (/морти.*обычн|морти.*человек/i.test(low)) {
+                effects.mortyAppearance = "normal";
+                effects.mortyScale = 1;
+            }
+
+            if (/морти.*без футболк|морти.*снял футболк|голый морти/i.test(low)) {
+                effects.mortyShirtless = true;
+            } else if (/морти.*одел футболк/i.test(low)) {
+                effects.mortyShirtless = false;
+            }
+
+            // 3. Призыв персонажей и объектов
+            const numMatch = low.match(/(\d+)/);
+            const parsedNum = numMatch ? Math.min(35, Math.max(1, parseInt(numMatch[1], 10))) : null;
+            const globalShirtless = /без футболк|голы|без майк|без рубашк|shirtless/i.test(low);
+            const globalEyepatch = /повязк/i.test(low);
+            const globalAngry = /зл(ых|ой|ые)|сердит|ярост|evil/i.test(low);
+
+            if (/джессик/i.test(low)) {
+                effects.spawns.push({
+                    archetype: "jessica",
+                    count: parsedNum || 1,
+                    name: "Джессика",
+                    shirtless: globalShirtless,
+                    eyepatch: globalEyepatch,
+                    angry: globalAngry
+                });
+            }
+            if (/птич.*личност|birdperson|птицечеловек/i.test(low)) {
+                effects.spawns.push({ archetype: "birdperson", count: 1, name: "Птичья Личность", shirtless: globalShirtless, angry: globalAngry });
+            }
+            if (/сквонч|squanch/i.test(low)) {
+                effects.spawns.push({ archetype: "squanchy", count: 1, name: "Сквончи", shirtless: globalShirtless, angry: globalAngry });
+            }
+            if (/мисикс|meeseeks/i.test(low)) {
+                effects.spawns.push({ archetype: "meeseeks", count: parsedNum || 3, name: "Мистер Мисикс", shirtless: false, angry: globalAngry });
+            }
+            if (/жопосранчик|poopybutthole/i.test(low)) {
+                effects.spawns.push({ archetype: "poopybutthole", count: 1, name: "Мистер Жопосранчик", shirtless: globalShirtless, angry: globalAngry });
+            }
+            if (/саммер/i.test(low)) {
+                effects.spawns.push({ archetype: "summer", count: 1, name: "Саммер", shirtless: globalShirtless });
+            }
+            if (/джерри/i.test(low)) {
+                effects.spawns.push({ archetype: "jerry", count: 1, name: "Джерри", shirtless: globalShirtless });
+            }
+            if (/бет/i.test(low)) {
+                effects.spawns.push({ archetype: "beth", count: 1, name: "Бет", shirtless: globalShirtless });
+            }
+            if (/коп|полиц/i.test(low)) {
+                effects.spawns.push({ archetype: "cop_rick", count: parsedNum || 3, name: "Рик-Коп", shirtless: globalShirtless, angry: true });
+            }
+            if (/ковбой.*рик|рик.*ковбой/i.test(low)) {
+                effects.spawns.push({ archetype: "cowboy_rick", count: parsedNum || 1, name: "Ковбой-Рик", shirtless: globalShirtless, angry: globalAngry });
+            }
+            if (/дуфус|глуп.*рик|doofus/i.test(low)) {
+                effects.spawns.push({ archetype: "doofus_rick", count: parsedNum || 1, name: "Дуфус Рик (J19ζ7)", shirtless: globalShirtless, angry: false });
+            }
+            if (/киборг.*рик|рик.*киборг/i.test(low) && !/рик.*стал.*киборг/i.test(low)) {
+                effects.spawns.push({ archetype: "cyborg_rick", count: parsedNum || 1, name: "Киборг-Рик", shirtless: globalShirtless, angry: true });
+            }
+            if (/токсичн.*рик|рик.*токсичн/i.test(low) && !/рик.*стал.*токсичн/i.test(low)) {
+                effects.spawns.push({ archetype: "toxic_rick", count: parsedNum || 1, name: "Токсичный Рик", shirtless: globalShirtless, angry: true });
+            }
+            if (/совет.*рик/i.test(low)) {
+                effects.spawns.push({ archetype: "council_rick", count: parsedNum || 3, name: "Советник Рик", shirtless: globalShirtless, angry: true });
+            }
+            if (effects.spawns.length === 0 && (/разн.*рик|других рик|альтернативн.*рик|рик(и|ов)\s+из\s+портал|\d+\s+рик/i.test(low))) {
+                const count = parsedNum || 6;
+                const rickVariants = [
+                    { archetype: "cowboy_rick", name: "Ковбой-Рик" },
+                    { archetype: "cop_rick", name: "Рик-Коп" },
+                    { archetype: "cyborg_rick", name: "Киборг-Рик" },
+                    { archetype: "toxic_rick", name: "Токсичный Рик" },
+                    { archetype: "doofus_rick", name: "Дуфус Рик" },
+                    { archetype: "council_rick", name: "Советник Рик" }
+                ];
+                for (let i = 0; i < count; i++) {
+                    const v = rickVariants[i % rickVariants.length];
+                    effects.spawns.push({
+                        archetype: v.archetype,
+                        count: 1,
+                        name: v.name,
+                        shirtless: globalShirtless,
+                        angry: globalAngry
+                    });
+                }
+            }
+
+            // 2.5D Кондиционеры
+            if (/кондиционер|кондей|сплит/i.test(low)) {
+                const acCount = parsedNum || 2;
+                effects.spawns.push({
+                    archetype: "air_conditioner",
+                    count: Math.min(15, acCount),
+                    name: "Турбо-кондиционер",
+                    shirtless: false,
+                    angry: false
+                });
+            }
+
+            // Толпа Морти (напр. «20 злых Морти без футболки»)
+            if (effects.spawns.length === 0 && (/привёл|принес|пришли|появил|призвать|арми|толп|\d+.*морти/i.test(low))) {
+                const count = parsedNum || (globalAngry ? 10 : 1);
+                const isMortyCrowd = /морти/i.test(low);
+                effects.spawns.push({
+                    archetype: isMortyCrowd ? "evil_morty" : "custom",
+                    count,
+                    name: isMortyCrowd ? (globalAngry ? "Злой Морти" : "Клон Морти") : "Гость из портала",
+                    shirtless: globalShirtless,
+                    eyepatch: globalEyepatch,
+                    angry: globalAngry
+                });
+            }
+
+            if (/взрыв|взорвал|бабах|бахнул/i.test(low)) {
+                effects.explosion = true;
+            }
+
+            return effects;
+        }
+
+        function applyRpRealityEffects(effects) {
+            if (!effects) return;
+            let visualChanged = false;
+
+            if (effects.resetAll) {
+                state.rick.appearance = "normal";
+                state.rick.shirtless = false;
+                state.morty.appearance = "normal";
+                state.morty.shirtless = false;
+                state.morty.eyepatch = false;
+                state.morty.scale = 1;
+                state.spawnedChars = [];
+                state.screenFlash = 0.4;
+                playSfx('transform');
+                spawnParticles(state.rick.x, state.rick.y - 30, "#a6eee6", 28);
+                spawnParticles(state.morty.x, state.morty.y - 30, "#f0e14a", 28);
+                return;
+            }
+
+            if (effects.rickAppearance) {
+                state.rick.appearance = effects.rickAppearance;
+                visualChanged = true;
+                spawnParticles(state.rick.x, state.rick.y - 30, "#39ff14", 36);
+            }
+            if (typeof effects.rickShirtless === 'boolean') {
+                state.rick.shirtless = effects.rickShirtless;
+                visualChanged = true;
+            }
+
+            if (effects.mortyAppearance) {
+                state.morty.appearance = effects.mortyAppearance;
+                visualChanged = true;
+                spawnParticles(state.morty.x, state.morty.y - 30, "#f0e14a", 36);
+            }
+            if (typeof effects.mortyShirtless === 'boolean') {
+                state.morty.shirtless = effects.mortyShirtless;
+                visualChanged = true;
+            }
+            if (effects.mortyScale) {
+                state.morty.scale = effects.mortyScale;
+                visualChanged = true;
+            }
+
+            if (Array.isArray(effects.spawns) && effects.spawns.length > 0) {
+                const portalX = Math.max(180, Math.min(WORLD_W - 180, state.morty.x + state.morty.facing * 95));
+                const portalY = Math.max(200, Math.min(WORLD_H - 180, state.morty.y));
+
+                state.portal = {
+                    x: portalX,
+                    y: portalY,
+                    radius: 56,
+                    angle: 0,
+                    isLoading: false,
+                    isSpawnRift: true,
+                    lifeTimer: 4.5
+                };
+                spawnParticles(portalX, portalY - 25, "#39ff14", 42);
+                playSfx('portal');
+
+                let totalAdded = 0;
+                for (const sp of effects.spawns) {
+                    const count = Math.min(35, Math.max(1, sp.count || 1));
+                    for (let i = 0; i < count; i++) {
+                        if (state.spawnedChars.length >= 45) state.spawnedChars.shift();
+                        const angle = (Math.PI * 2 * (totalAdded + i)) / Math.max(1, count);
+                        const isAc = sp.archetype === "air_conditioner";
+                        state.spawnedChars.push({
+                            archetype: sp.archetype || "evil_morty",
+                            name: sp.name || "Персонаж",
+                            x: isAc
+                                ? portalX + (i - (count - 1) / 2) * 85
+                                : portalX + (Math.random() - 0.5) * 34,
+                            y: isAc
+                                ? portalY + 20 + (i % 2) * 28
+                                : portalY + (Math.random() - 0.5) * 26,
+                            facing: 1,
+                            walkPhase: Math.random() * Math.PI * 2,
+                            orbitAngle: angle,
+                            orbitRadius: 72 + ((totalAdded + i) % 4) * 38 + Math.random() * 20,
+                            shirtless: Boolean(sp.shirtless),
+                            eyepatch: Boolean(sp.eyepatch),
+                            angry: Boolean(sp.angry),
+                            hairColor: sp.hairColor || "#ec4899",
+                            shirtColor: sp.shirtColor || "#8b5cf6"
+                        });
+                    }
+                    totalAdded += count;
+                }
+                visualChanged = true;
+            }
+
+            if (effects.explosion) {
+                playSfx('explosion');
+                state.screenFlash = 0.7;
+                spawnParticles(state.rick.x + 50, state.rick.y - 20, "#f97316", 45);
+                spawnParticles(state.rick.x + 50, state.rick.y - 20, "#facc15", 35);
+            } else if (visualChanged) {
+                playSfx('transform');
+                state.screenFlash = 0.38;
+            }
+        }
+
+        // ==========================================
+        // 7. ГАРАЖ СМИТОВ С ЗЕЛЁНОЙ ЛУЖАЙКОЙ И ЦИТАДЕЛЬ РИКОВ
+        // ==========================================
+        function generateGrassTufts() {
+            const tufts = [];
+            for (let i = 0; i < 160; i++) {
+                const gx = 90 + Math.random() * (WORLD_W - 180);
+                const gy = 140 + Math.random() * (WORLD_H - 220);
+                // Пропускаем внутренний пол гаража (x: 590..1310, y: 310..735)
+                if (gx > 580 && gx < 1320 && gy > 300 && gy < 745) continue;
+                tufts.push({
+                    x: gx,
+                    y: gy,
+                    scale: 0.75 + Math.random() * 0.65,
+                    hasFlower: Math.random() < 0.24,
+                    flowerColor: Math.random() < 0.5 ? "#fef08a" : "#ffffff"
+                });
+            }
+            return tufts;
+        }
+
+        function initGarageWorld() {
+            state.currentDimension = {
+                code: "C-137",
+                title: "Гараж Смитов и Лужайка (C-137)",
+                storyPrompt: "Забери пушку с верстака слева или выйди погулять на зелёную траву!",
+                groundColor: "#38a148",
+                gridColor: "#2f8e3d",
+                accentColor: "#39ff14",
+                skyHorizon: "#1e5631",
+                isCitadel: false
+            };
+
+            state.rick.x = 950;
+            state.rick.y = 665;
+            state.morty.x = 890;
+            state.morty.y = 678;
+            state.rickTrail = [];
+            state.portal = null;
+            state.spawnedChars = [];
+            state.activeProximityId = null;
+            state.grassTufts = generateGrassTufts();
+
+            state.entities = [
+                {
+                    id: "garage_floor", kind: "ZONE", x: 950, y: 525, w: 700, h: 420,
+                    color: "#9aa8b6", label: "ГАРАЖ СМИТОВ C-137"
+                },
+                {
+                    id: "driveway_path", kind: "DRIVEWAY", x: 950, y: 1020, w: 460, h: 570,
+                    color: "#cbd5e1"
+                },
+                {
+                    id: "oil_stain_1", kind: "OIL_STAIN", x: 965, y: 635, rx: 48, ry: 22
+                },
+                {
+                    id: "garage_rug", kind: "RUG", x: 950, y: 695, w: 210, h: 66,
+                    color: "#2e4057", border: "#97ce4c"
+                },
+                {
+                    id: "workbench_gun", kind: "PROP", shape: "WORKBENCH_GUN", x: 745, y: 410, radius: 44,
+                    color: "#6b4423", accent: "#39ff14",
+                    name: state.hasPortalGun ? "Верстак Рика" : "Верстак (Портальная пушка!)",
+                    description: state.hasPortalGun
+                        ? "Рабочий верстак Рика, заваленный схемами, отвёртками и пустыми бутылками."
+                        : "Прямо на верстаке лежит заряженная Портальная пушка C-137! Нажми [F] или кнопку «Взять пушку».",
+                    mortyReaction: state.hasPortalGun
+                        ? "Пушка уже у нас! Жми [P] или кнопку пушки, чтобы открыть портал в Цитадель!"
+                        : "Рик, вот она! Хватай пушку скорее, пока мама не позвала нас мыть посуду!"
+                },
+                {
+                    id: "time_travel_box", kind: "PROP", shape: "BOX", x: 935, y: 375, radius: 36,
+                    color: "#eab308", accent: "#000000", name: "Коробка «Time Travel Stuff»",
+                    description: "Знаменитая картонная коробка на полке гаража с надписью «Time Travel Stuff».",
+                    mortyReaction: "Мы же договорились не трогать путешествия во времени, Рик!"
+                },
+                {
+                    id: "house_door", kind: "PROP", shape: "DOOR", x: 1135, y: 375, radius: 38,
+                    color: "#d97706", accent: "#fef08a", name: "Дверь в дом Смитов",
+                    description: "Дверь на кухню семьи Смитов. Оттуда пахнет блинчиками и жалобами Джерри.",
+                    mortyReaction: "Лучше не заходить туда сейчас, Рик, а то Джерри начнёт рассказывать про свою новую идею для рекламы!"
+                },
+                {
+                    id: "shelves_jars", kind: "PROP", shape: "SHELF", x: 1210, y: 525, radius: 42,
+                    color: "#475569", accent: "#39ff14", name: "Стеллаж с инопланетными банками",
+                    description: "Металлические полки с колбами, калаксианскими кристаллами и заспиртованными существами.",
+                    mortyReaction: "Фу, Рик, эта штука в зелёной банке только что мне подмигнула!"
+                },
+                {
+                    id: "butter_robot", kind: "NPC", shape: "BUTTER_BOT", x: 785, y: 635, radius: 34,
+                    color: "#cbd5e1", accent: "#f0e14a", name: "Робот для передачи масла",
+                    description: "Маленький робот с клешнями печально смотрит на стол:\n— Робот: «В чём моё предназначение?»\n— Рик: «Ты передаёшь масло.»\n— Робот: «О боже...»",
+                    mortyReaction: "Бедняга... Рик, зачем ты вообще наделил его самосознанием, если он просто возит маслёнку?!"
+                },
+                {
+                    id: "mailbox_smith", kind: "PROP", shape: "MAILBOX", x: 675, y: 950, radius: 36,
+                    color: "#1d4ed8", accent: "#ef4444", name: "Почтовый ящик Смитов",
+                    description: "Синий почтовый ящик на зелёной лужайке перед гаражом с надписью «SMITH».",
+                    mortyReaction: "Там опять одни неоплаченные счета Джерри, Рик!"
+                },
+                { id: "bush1", kind: "DECOR", shape: "BUSH", x: 545, y: 745, radius: 36, color: "#15803d", accent: "#4ade80" },
+                { id: "bush2", kind: "DECOR", shape: "BUSH", x: 1355, y: 745, radius: 38, color: "#15803d", accent: "#4ade80" },
+                { id: "tree1", kind: "DECOR", shape: "TREE", x: 430, y: 450, radius: 46, color: "#166534", accent: "#22c55e" },
+                { id: "tree2", kind: "DECOR", shape: "TREE", x: 1470, y: 460, radius: 48, color: "#166534", accent: "#22c55e" },
+                { id: "tree3", kind: "DECOR", shape: "TREE", x: 470, y: 1030, radius: 45, color: "#166534", accent: "#22c55e" },
+                { id: "tree4", kind: "DECOR", shape: "TREE", x: 1420, y: 1020, radius: 50, color: "#166534", accent: "#22c55e" }
+            ];
+
+            updatePortalButtonUI();
+            updateHudInfo();
+        }
+
+        function returnToGarageDirect() {
+            playSfx('portal');
+            initGarageWorld();
+            spawnParticles(state.rick.x, state.rick.y - 30, "#97ce4c", 35);
+            const rickLine = "*Ик!* С возвращением в родной гараж на зелёную лужайку, Морти!";
+            const mortyLine = "Фух, наконец-то дома, Рик! Тут на траве так спокойно!";
+            setRickSpeech(rickLine);
+            setMortySpeech(mortyLine, "Облегчение");
+            addDialogueLog("Рик", rickLine, "text-[#a6eee6]");
+            speakCharacterLine('rick', rickLine);
+        }
+
+        function updatePortalButtonUI() {
+            const btn = document.getElementById('btn-portal-gun');
+            const lbl = document.getElementById('btn-portal-label');
+            const badge = document.getElementById('gun-status-badge');
+
+            if (state.hasPortalGun) {
+                btn.className = "bg-gradient-to-r from-[#39ff14] to-[#97ce4c] hover:brightness-110 text-black font-comic text-base sm:text-lg px-3 py-2 rounded-2xl comic-box transition active:scale-95 flex items-center gap-1.5";
+                lbl.textContent = "Пушка (P)";
+                badge.textContent = "Пушка: у Рика";
+                badge.className = "text-[10px] font-mono-tech bg-[#39ff14]/20 text-[#39ff14] border border-[#39ff14]/40 px-1.5 py-0.5 rounded shrink-0";
+            } else {
+                btn.className = "bg-[#232b47] hover:bg-[#2f3b61] text-gray-200 font-comic text-base sm:text-lg px-3 py-2 rounded-2xl comic-box transition active:scale-95 flex items-center gap-1.5";
+                lbl.textContent = "Взять пушку";
+                badge.textContent = "Пушка: на столе";
+                badge.className = "text-[10px] font-mono-tech bg-amber-500/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 rounded shrink-0";
+            }
+        }
+
+        function updateHudInfo() {
+            document.getElementById('hud-dim-code').textContent = state.currentDimension.code;
+            document.getElementById('hud-dim-title').textContent = state.currentDimension.title;
+            document.getElementById('hud-dim-subtitle').textContent = state.currentDimension.storyPrompt;
+        }
+
+        function pickupPortalGun() {
+            state.hasPortalGun = true;
+            playSfx('pickup');
+            spawnParticles(745, 390, "#39ff14", 35);
+
+            const wb = state.entities.find(e => e.id === "workbench_gun");
+            if (wb) {
+                wb.name = "Верстак Рика";
+                wb.description = "Верстак завален микросхемами, отвёртками и пустыми бутылками.";
+                wb.mortyReaction = "Пушка уже у нас, Рик! Жми кнопку пушки или клавишу P!";
+            }
+
+            updatePortalButtonUI();
+            updateHudInfo();
+
+            const rickLine = "*Ик!* Отлично, пушка заряжена! Жми [P] или кнопку пушки — сваливаем в Цитадель!";
+            const mortyLine = "Ура! Только обещай, Рик, никаких гигантских жуков и смертельных ловушек!";
+            setRickSpeech(rickLine);
+            addDialogueLog("Рик", rickLine, "text-[#a6eee6]");
+            setMortySpeech(mortyLine, "Энтузиазм");
+            speakCharacterLine('rick', rickLine);
+        }
+
+        function handlePortalGunButtonClick() {
+            if (!state.hasPortalGun) {
+                const distToBench = Math.hypot(state.rick.x - 745, state.rick.y - 410);
+                if (distToBench < 145) {
+                    pickupPortalGun();
+                    openModal('portal-modal');
+                } else {
+                    targetMovePoint = { x: 765, y: 470 };
+                    const line = "*Ик!* Сначала надо подойти к верстаку слева и забрать пушку!";
+                    setRickSpeech(line);
+                    addDialogueLog("Рик", line, "text-[#a6eee6]");
+                    speakCharacterLine('rick', line);
+                }
+                return;
+            }
+            openModal('portal-modal');
+        }
+
+        function openModal(id) {
+            playSfx('talk');
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+        }
+
+        function fillPortalPrompt(text) {
+            document.getElementById('portal-prompt-input').value = text;
+        }
+
+        async function createPortalFromPrompt() {
+            const input = document.getElementById('portal-prompt-input');
+            const userIdea = input.value.trim() || "Цитадель Риков";
+            closeModal('portal-modal');
+
+            playSfx('portal');
+            const portalX = Math.max(200, Math.min(WORLD_W - 200, state.rick.x + state.rick.facing * 125));
+            const portalY = Math.max(220, Math.min(WORLD_H - 200, state.rick.y));
+
+            state.portal = {
+                x: portalX,
+                y: portalY,
+                radius: 62,
+                angle: 0,
+                isLoading: true,
+                targetWorldData: null
+            };
+            spawnParticles(portalX, portalY - 25, "#39ff14", 35);
+
+            const rickOpenLine = `*Ик!* Портал открыт, Морти! Шагай внутрь, пока не закрылся!`;
+            setRickSpeech(rickOpenLine);
+            addDialogueLog("Рик", rickOpenLine, "text-[#a6eee6]");
+            speakCharacterLine('rick', rickOpenLine);
+
+            if (/цитадел|вафл|совет рик/i.test(userIdea)) {
+                state.portal.targetWorldData = buildCitadelWorldData();
+                state.portal.isLoading = false;
+                setMortySpeech("Ого, это же координаты Цитадели Риков! Заходим, Рик!", "Волнение");
+                return;
+            }
+
+            const sysPrompt = `Ты — генератор локаций для 2.5D-игры «Рик и Морти» (стиль Pocket Mortys).
+Игрок ввёл описание приключения: "${userIdea}".
+Создай атмосферную, сюжетную локацию БЕЗ случайных монстров и навязанных сражений — только мирные или колоритные NPC, интерактивные объекты и окружение по запросу игрока.
+Верни ТОЛЬКО валидный JSON по схеме.`;
+
+            const worldSchema = {
+                type: "OBJECT",
+                properties: {
+                    code: { type: "STRING" },
+                    title: { type: "STRING" },
+                    storySummary: { type: "STRING" },
+                    groundColor: { type: "STRING" },
+                    gridColor: { type: "STRING" },
+                    accentColor: { type: "STRING" },
+                    mortyArrivalLine: { type: "STRING" },
+                    mortyMood: { type: "STRING" },
+                    entities: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                kind: { type: "STRING", enum: ["NPC", "PROP"] },
+                                shape: { type: "STRING", enum: ["MORTY_CITIZEN", "COP_RICK", "WORKER_RICK", "DORPEIKA_MACHINE", "CRYSTAL"] },
+                                name: { type: "STRING" },
+                                color: { type: "STRING" },
+                                accent: { type: "STRING" },
+                                description: { type: "STRING" },
+                                mortyReaction: { type: "STRING" }
+                            },
+                            required: ["kind", "shape", "name", "color", "accent", "description", "mortyReaction"]
+                        }
+                    }
+                },
+                required: ["code", "title", "storySummary", "groundColor", "gridColor", "accentColor", "mortyArrivalLine", "mortyMood", "entities"]
+            };
+
+            try {
+                const raw = await callGeminiSafe({
+                    contents: [{ parts: [{ text: userIdea }] }],
+                    systemInstruction: { parts: [{ text: sysPrompt }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: worldSchema
+                    }
+                }, 7000);
+
+                const parsed = safeParseJson(raw);
+                if (parsed && Array.isArray(parsed.entities) && parsed.entities.length > 0) {
+                    if (state.portal) {
+                        state.portal.targetWorldData = parsed;
+                        state.portal.isLoading = false;
+                    }
+                } else {
+                    throw new Error("Invalid world JSON");
+                }
+            } catch (_) {
+                if (state.portal) {
+                    state.portal.targetWorldData = buildCustomWorldFallback(userIdea);
+                    state.portal.isLoading = false;
+                }
+            }
+        }
+
+        function enterGeneratedWorld(worldData) {
+            playSfx('portal');
+            state.screenFlash = 0.55;
+            state.currentDimension = {
+                code: worldData.code || "X-99",
+                title: worldData.title || "Новое измерение",
+                storyPrompt: worldData.storySummary || "Исследуй локацию и общайся с персонажами",
+                groundColor: worldData.groundColor || "#14213d",
+                gridColor: worldData.gridColor || "#0e172b",
+                accentColor: worldData.accentColor || "#39ff14",
+                skyHorizon: worldData.skyHorizon || "#090d1a",
+                isCitadel: Boolean(worldData.isCitadel)
+            };
+
+            state.rick.x = 950;
+            state.rick.y = 780;
+            state.morty.x = 890;
+            state.morty.y = 792;
+            state.rickTrail = [];
+            state.particles = [];
+            state.spawnedChars = [];
+            state.grassTufts = [];
+            state.activeProximityId = null;
+            closeInteractionCard();
+
+            state.portal = {
+                x: 680,
+                y: 860,
+                radius: 56,
+                angle: 0,
+                isLoading: false,
+                isReturnPortal: true
+            };
+
+            const newEntities = [];
+            const coords = [
+                { x: 950, y: 550 },
+                { x: 1180, y: 630 },
+                { x: 750, y: 620 },
+                { x: 1140, y: 830 },
+                { x: 960, y: 870 }
+            ];
+
+            (worldData.entities || []).forEach((item, idx) => {
+                const pos = coords[idx % coords.length];
+                newEntities.push({
+                    id: `w_ent_${idx}`,
+                    kind: item.kind || "PROP",
+                    shape: item.shape || "CRYSTAL",
+                    x: pos.x,
+                    y: pos.y,
+                    radius: 40,
+                    color: item.color || "#334155",
+                    accent: item.accent || "#39ff14",
+                    name: item.name || "Объект",
+                    description: item.description || "Необычный объект из этого измерения.",
+                    mortyReaction: item.mortyReaction || "Ого, Рик, посмотри на это!"
+                });
+            });
+
+            const decorPositions = [
+                { x: 640, y: 450 },
+                { x: 950, y: 435 },
+                { x: 1260, y: 450 }
+            ];
+            decorPositions.forEach((dp, idx) => {
+                newEntities.push({
+                    id: `w_decor_${idx}`,
+                    kind: "DECOR",
+                    shape: worldData.isCitadel ? "CITADEL_WINDOW" : "CRYSTAL",
+                    x: dp.x,
+                    y: dp.y,
+                    radius: 44,
+                    color: worldData.decorColor || "#1e293b",
+                    accent: "#39ff14"
+                });
+            });
+
+            state.entities = newEntities;
+            updateHudInfo();
+            spawnParticles(state.rick.x, state.rick.y - 30, "#39ff14", 40);
+
+            const arrivalLine = worldData.mortyArrivalLine || `Мы на месте, Рик! Это «${state.currentDimension.title}»!`;
+            setMortySpeech(arrivalLine, worldData.mortyMood || "Любопытство");
+            speakCharacterLine('morty', arrivalLine);
+        }
+
+        // ==========================================
+        // 8. ЖИВЫЕ ДИАЛОГИ С ОБЪЕКТАМИ + ОБЩЕНИЕ / RP
+        // ==========================================
+        function setRickSpeech(text) {
+            state.rick.speechBubble = text;
+            state.rick.speechTimer = 6.5;
+        }
+
+        function setMortySpeech(text, mood = null) {
+            state.morty.speechBubble = text;
+            state.morty.speechTimer = 7.5;
+            if (mood) {
+                state.morty.mood = mood;
+                const badge = document.getElementById('morty-mood-badge');
+                if (badge) badge.textContent = `Морти: ${mood}`;
+            }
+            addDialogueLog("Морти", text, "text-[#f0e14a]");
+        }
+
+        function addDialogueLog(speaker, text, colorClass = "text-gray-200") {
+            const feed = document.getElementById('dialogue-feed');
+            const p = document.createElement('p');
+            p.className = colorClass;
+            p.innerHTML = `<b>${speaker}:</b> ${text}`;
+            feed.appendChild(p);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        const ENTITY_BANTER_POOLS = {
+            butter_robot: [
+                {
+                    npcLine: "В чём моё предназначение?",
+                    rick: "*Ик!* Ты передаёшь масло.",
+                    morty: "О боже... Бедняга, Рик, зачем ты вообще дал ему самосознание?!"
+                },
+                {
+                    npcLine: "Я не создан для дружбы. Я создан для холестерина.",
+                    rick: "*Ик!* Не драматизируй, кусок микросхем, у тебя хотя бы нет ипотеки.",
+                    morty: "Мне так его жалко, Рик! Может, возьмём его с собой в Цитадель?"
+                },
+                {
+                    npcLine: "Сначала я передаю масло. А что потом? Пустота?",
+                    rick: "*Ик!* Потом ты моешь тарелку, гений! Не мешай науке.",
+                    morty: "Ох, чувак, держись... У нас в этой семье у всех экзистенциальный кризис."
+                }
+            ],
+            workbench_gun: [
+                {
+                    rick: "*Ик!* Вот она, детка! Портальная пушка C-137 прямо на верстаке!",
+                    morty: "Забирай её скорее, Рик, а то она так ярко светится, что у меня глаза слезятся!"
+                },
+                {
+                    rick: "*Ик!* Мой верстак — единственное место в доме, куда Джерри боится совать нос.",
+                    morty: "Ага, в прошлый раз он потрогал отвёртку и на три дня стал двухмерным!"
+                }
+            ],
+            time_travel_box: [
+                {
+                    rick: "*Ик!* Коробка «Time Travel Stuff» лежит на полке и там и останется. Путешествия во времени — для ленивых сценаристов!",
+                    morty: "Я понял, Рик! Никаких временных петель, только параллельные измерения!"
+                }
+            ],
+            house_door: [
+                {
+                    rick: "*Ик!* За этой дверью Джерри снова пытается найти работу в интернете. Не открывай!",
+                    morty: "Фух, точно, мама меня сразу заставит убираться в комнате!"
+                }
+            ],
+            mailbox_smith: [
+                {
+                    rick: "*Ик!* Счета Джерри на зелёной лужайке — лучшая демонстрация бессмысленности бытия!",
+                    morty: "О боже, Рик, тут даже журнал для безработных отцов!"
+                }
+            ]
+        };
+
+        function triggerEntityConversation(ent, isManualClick = false) {
+            if (!ent) return;
+            const now = performance.now();
+            if (!isManualClick && now - state.lastProximityTalkTime < 2200) return;
+            state.lastProximityTalkTime = now;
+
+            playSfx('talk');
+            spawnParticles(ent.x, ent.y - 25, ent.accent || "#39ff14", isManualClick ? 18 : 10);
+
+            const pool = ENTITY_BANTER_POOLS[ent.id];
+            let chosen = null;
+
+            if (pool && pool.length > 0) {
+                const idx = state.entityDialogueIndexes[ent.id] || 0;
+                chosen = pool[idx % pool.length];
+                state.entityDialogueIndexes[ent.id] = idx + 1;
+            } else {
+                const genericScenes = [
+                    {
+                        npcLine: ent.kind === 'NPC' ? `Приветствую в секторе «${state.currentDimension.title}»!` : null,
+                        rick: `*Ик!* Смотри, Морти, это же ${ent.name}. Классика для этого измерения!`,
+                        morty: ent.mortyReaction || `Ого, Рик, смотри на «${ent.name}»! Выглядит впечатляюще!`
+                    },
+                    {
+                        npcLine: ent.kind === 'NPC' ? `Только без фокусов с портальной пушкой, C-137!` : null,
+                        rick: `*Ик!* Не учи меня жить, приятель, я сам себе Совет!`,
+                        morty: `Пожалуйста, Рик, давай просто спокойно посмотрим на «${ent.name}» и пойдём дальше!`
+                    }
+                ];
+                const idx = state.entityDialogueIndexes[ent.id] || 0;
+                chosen = genericScenes[idx % genericScenes.length];
+                state.entityDialogueIndexes[ent.id] = idx + 1;
+            }
+
+            if (chosen.npcLine) {
+                addDialogueLog(ent.name, chosen.npcLine, "text-[#39ff14]");
+                if (ent.id === 'butter_robot') speakCharacterLine('robot', chosen.npcLine);
+            }
+            setRickSpeech(chosen.rick);
+            addDialogueLog("Рик", chosen.rick, "text-[#a6eee6]");
+            setMortySpeech(chosen.morty, ent.kind === 'NPC' ? "Общение" : "Любопытство");
+
+            const delayRick = (chosen.npcLine && ent.id === 'butter_robot') ? 1600 : 100;
+            setTimeout(() => speakCharacterLine('rick', chosen.rick), delayRick);
+            setTimeout(() => speakCharacterLine('morty', chosen.morty), delayRick + 2100);
+
+            if (isManualClick) {
+                document.getElementById('icard-title').textContent = ent.name;
+                const fullBody = chosen.npcLine
+                    ? `«${chosen.npcLine}»\n\n${ent.description}`
+                    : ent.description;
+                document.getElementById('icard-body').textContent = fullBody;
+                document.getElementById('icard-morty').textContent = `«${chosen.morty}»`;
+                document.getElementById('interaction-card').classList.remove('hidden');
+            }
+        }
+
+        async function processUserMessage(userText, mode = 'talk') {
+            playSfx('talk');
+
+            if (mode === 'talk') {
+                addDialogueLog("💬 Вы (Разговор)", userText, "text-[#38bdf8]");
+                setRickSpeech(userText);
+
+                state.morty.isThinking = true;
+                const talkSysPrompt = `Ты — сценарист живых диалогов мультсериала «Рик и Морти».
+Текущая локация: «${state.currentDimension.title}».
+Сейчас включён режим ОБЫЧНОГО РАЗГОВОРА (игрок просто общается, НЕ совершая RP-действий по изменению реальности).
+Ответь от лица Рика (цинично, с фирменным *ик!*) и Морти (эмоционально, в характере) на реплику игрока: "${userText}".
+Верни ТОЛЬКО JSON по схеме.`;
+
+                const talkSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        rickReply: { type: "STRING" },
+                        mortyReply: { type: "STRING" },
+                        mortyMood: { type: "STRING" }
+                    },
+                    required: ["rickReply", "mortyReply", "mortyMood"]
+                };
+
+                try {
+                    const raw = await callGeminiSafe({
+                        contents: [{ parts: [{ text: userText }] }],
+                        systemInstruction: { parts: [{ text: talkSysPrompt }] },
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: talkSchema
+                        }
+                    }, 6500);
+
+                    const res = safeParseJson(raw);
+                    if (res && res.rickReply && res.mortyReply) {
+                        setRickSpeech(res.rickReply);
+                        addDialogueLog("Рик", res.rickReply, "text-[#a6eee6]");
+                        setMortySpeech(res.mortyReply, res.mortyMood || "Диалог");
+                        speakCharacterLine('rick', res.rickReply);
+                        setTimeout(() => speakCharacterLine('morty', res.mortyReply), 2300);
+                    } else {
+                        throw new Error("Invalid talk JSON");
+                    }
+                } catch (_) {
+                    const low = userText.toLowerCase();
+                    let rLine = `*Ик!* Слушай, это просто болтовня, Морти. Если хочешь реально поменять вселенную — переключись на «RP-Действие»!`;
+                    let mLine = `Ага, мы просто болтаем! Нажми кнопку «RP-Действие» (R), если хочешь что-нибудь сотворить!`;
+
+                    if (/джессик/i.test(low)) {
+                        rLine = `*Ик!* Опять ты про свою Джессику, Морти! Выбрось гормоны из головы, у нас наука горит!`;
+                        mLine = `О боже, Рик, она же такая классная! Интересно, как она там в школе...`;
+                    } else if (/огур/i.test(low)) {
+                        rLine = `*Ик!* Да-да, я могу стать Огурчиком Риком в любой момент! Просто включи RP-режим и проверь!`;
+                        mLine = `Пожалуйста, не надо, Рик, только не снова в рассол!`;
+                    } else if (/цитадел/i.test(low)) {
+                        rLine = `*Ик!* В Цитадели полно бюрократов, но вафли Простого Рика там неплохие. Бери пушку и полетели!`;
+                        mLine = `Главное — держаться подальше от Совета Риков и копов!`;
+                    }
+
+                    setRickSpeech(rLine);
+                    addDialogueLog("Рик", rLine, "text-[#a6eee6]");
+                    setMortySpeech(mLine, "Беседа");
+                    speakCharacterLine('rick', rLine);
+                } finally {
+                    state.morty.isThinking = false;
+                }
+                return;
+            }
+
+            // РЕЖИМ 2: RP-ДЕЙСТВИЕ — ФИЗИЧЕСКИ ИЗМЕНЯЕМ РЕАЛЬНОСТЬ НА КАРТЕ!
+            addDialogueLog("🎭 Вы (RP-Действие)", userText, "text-[#f0e14a]");
+            setRickSpeech(`*RP:* ${userText}`);
+
+            const localEffects = parseLocalRpEffects(userText);
+            applyRpRealityEffects(localEffects);
+
+            state.morty.isThinking = true;
+            const rpSysPrompt = `Ты — RP Reality Engine в 2.5D-игре «Рик и Морти».
+Текущая локация: «${state.currentDimension.title}».
+Игрок активировал RP-ДЕЙСТВИЕ: "${userText}".
+Ответь в характере Рика и Морти, прокомментировав изменение реальности. Верни ТОЛЬКО JSON по схеме.`;
+
+            const rpSchema = {
+                type: "OBJECT",
+                properties: {
+                    rickReply: { type: "STRING" },
+                    mortyReply: { type: "STRING" },
+                    mortyMood: { type: "STRING" }
+                },
+                required: ["rickReply", "mortyReply", "mortyMood"]
+            };
+
+            try {
+                const raw = await callGeminiSafe({
+                    contents: [{ parts: [{ text: userText }] }],
+                    systemInstruction: { parts: [{ text: rpSysPrompt }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: rpSchema
+                    }
+                }, 6500);
+
+                const res = safeParseJson(raw);
+                if (res && res.rickReply && res.mortyReply) {
+                    setRickSpeech(res.rickReply);
+                    addDialogueLog("Рик", res.rickReply, "text-[#a6eee6]");
+                    setMortySpeech(res.mortyReply, res.mortyMood || "Шок");
+                    speakCharacterLine('rick', res.rickReply);
+                    setTimeout(() => speakCharacterLine('morty', res.mortyReply), 2300);
+                } else {
+                    throw new Error("Invalid RP JSON");
+                }
+            } catch (_) {
+                let rFallback = "*Ик!* Реальность переписана! Смотри, что натворил RP-движок, Морти!";
+                let mFallback = "О боже, Рик, это реально произошло прямо у нас на глазах!";
+
+                if (localEffects.rickAppearance === "pickle") {
+                    rFallback = "*Ик!* Я ОГУРЧИК РИИИК! Бум! Большое открытие, Морти!";
+                    mFallback = "О боже, Рик, ты реально превратил себя в огурец! Где твой шприц с антидотом?!";
+                } else if (localEffects.mortyAppearance === "tree") {
+                    rFallback = "*Ик!* Ха! Смотри, Морти, ты теперь дерево! Хоть кислород вырабатываешь!";
+                    mFallback = "О боже, Рик! У меня ветки вместо рук и листья на голове! Сделай что-нибудь!";
+                } else if (localEffects.spawns.length > 0) {
+                    const first = localEffects.spawns[0];
+                    if (first.archetype === "jessica") {
+                        rFallback = "*Ик!* Отлично, только не начинай заикаться перед ней, Морти!";
+                        mFallback = "П-привет, Джессика! Я... э-э... мы с Риком просто калибровали реальность!";
+                    } else if (first.archetype === "air_conditioner") {
+                        rFallback = "*Ик!* Наконец-то нормальный климат-контроль в этом гараже, Морти! Выкручиваю на минус десять!";
+                        mFallback = "О-о боже, Рик, так холодно! У меня зубы стучат от этих кондиционеров!";
+                    } else if (first.archetype && first.archetype.includes("rick")) {
+                        rFallback = "*Ик!* Только не это, ещё больше занудных версий меня самого из других измерений!";
+                        mFallback = "Ого, Рик, посмотри на их причёски и шляпы! Их тут целая толпа!";
+                    } else {
+                        rFallback = `*Ик!* Какого чёрта, Морти?! Из портала вывалилось ${first.count} (${first.name})!`;
+                        mFallback = "Они сами выбежали из разлома за мной, Рик! Что нам теперь делать?!";
+                    }
+                }
+
+                setRickSpeech(rFallback);
+                addDialogueLog("Рик", rFallback, "text-[#a6eee6]");
+                setMortySpeech(mFallback, "Шок");
+                speakCharacterLine('rick', rFallback);
+            } finally {
+                state.morty.isThinking = false;
+            }
+        }
+
+        function triggerNearestInteraction() {
+            if (state.portal && !state.portal.isLoading && !state.portal.isSpawnRift) {
+                const distP = Math.hypot(state.rick.x - state.portal.x, state.rick.y - state.portal.y);
+                if (distP < 95) {
+                    if (state.portal.isReturnPortal) returnToGarageDirect();
+                    else if (state.portal.targetWorldData) enterGeneratedWorld(state.portal.targetWorldData);
+                    return;
+                }
+            }
+
+            const ent = state.nearestEntity;
+            if (!ent) return;
+
+            if (ent.id === "workbench_gun" && !state.hasPortalGun) {
+                pickupPortalGun();
+                return;
+            }
+
+            triggerEntityConversation(ent, true);
+        }
+
+        function closeInteractionCard() {
+            document.getElementById('interaction-card').classList.add('hidden');
+        }
+
+        // ==========================================
+        // 9. УПРАВЛЕНИЕ (WASD, СТРЕЛКИ, КЛИК, ДЖОЙСТИК)
+        // ==========================================
+        const keys = {};
+        let targetMovePoint = null;
+        const joyInput = { x: 0, y: 0, active: false };
+
+        window.addEventListener('keydown', (e) => {
+            if (document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) return;
+            keys[e.code] = true;
+            targetMovePoint = null;
+
+            if (e.code === 'KeyF') {
+                e.preventDefault();
+                triggerNearestInteraction();
+            } else if (e.code === 'KeyP' || e.code === 'Space') {
+                e.preventDefault();
+                handlePortalGunButtonClick();
+            } else if (e.code === 'KeyT') {
+                e.preventDefault();
+                openDialogueModal('talk');
+            } else if (e.code === 'KeyV') {
+                e.preventDefault();
+                toggleVoiceRecognition('hud');
+            } else if (e.code === 'KeyR' || e.code === 'Enter') {
+                e.preventDefault();
+                openDialogueModal('rp');
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (e.target !== canvas) return;
+            initAudio();
+            const rect = canvas.getBoundingClientRect();
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
+
+            const camX = state.rick.x - viewportW / 2;
+            const camY = state.rick.y - viewportH / 2;
+            const worldX = screenX + camX;
+            const worldY = screenY + camY;
+
+            if (state.portal && !state.portal.isSpawnRift) {
+                const dPortal = Math.hypot(worldX - state.portal.x, worldY - state.portal.y);
+                if (dPortal < 65 && Math.hypot(state.rick.x - state.portal.x, state.rick.y - state.portal.y) < 125) {
+                    triggerNearestInteraction();
+                    return;
+                }
+            }
+
+            for (const ent of state.entities) {
+                if (ent.kind === 'DECOR' || ent.kind === 'ZONE' || ent.kind === 'DRIVEWAY' || ent.kind === 'RUG' || ent.kind === 'OIL_STAIN') continue;
+                const dEnt = Math.hypot(worldX - ent.x, worldY - ent.y);
+                if (dEnt < 60 && Math.hypot(state.rick.x - ent.x, state.rick.y - ent.y) < 135) {
+                    state.nearestEntity = ent;
+                    triggerNearestInteraction();
+                    return;
+                }
+            }
+
+            targetMovePoint = {
+                x: Math.max(120, Math.min(WORLD_W - 120, worldX)),
+                y: Math.max(160, Math.min(WORLD_H - 120, worldY))
+            };
+        });
+
+        const joyZone = document.getElementById('joystick-zone');
+        const joyKnob = document.getElementById('joystick-knob');
+
+        joyZone.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            initAudio();
+            joyInput.active = true;
+            targetMovePoint = null;
+            updateJoystick(e);
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (!joyInput.active) return;
+            updateJoystick(e);
+        });
+
+        window.addEventListener('pointerup', () => {
+            if (!joyInput.active) return;
+            joyInput.active = false;
+            joyInput.x = 0;
+            joyInput.y = 0;
+            joyKnob.style.transform = `translate(0px, 0px)`;
+        });
+
+        function updateJoystick(e) {
+            const rect = joyZone.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            let dx = e.clientX - cx;
+            let dy = e.clientY - cy;
+            const maxDist = 34;
+            const dist = Math.hypot(dx, dy);
+            if (dist > maxDist) {
+                dx = (dx / dist) * maxDist;
+                dy = (dy / dist) * maxDist;
+            }
+            joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            joyInput.x = dx / maxDist;
+            joyInput.y = dy / maxDist;
+        }
+
+        // ==========================================
+        // 10. ОБНОВЛЕНИЕ ФИЗИКИ, TRAIL МОРТИ И ДИАЛОГОВ
+        // ==========================================
+        function update(dt) {
+            let moveX = 0;
+            let moveY = 0;
+
+            if (keys['KeyW'] || keys['ArrowUp']) moveY -= 1;
+            if (keys['KeyS'] || keys['ArrowDown']) moveY += 1;
+            if (keys['KeyA'] || keys['ArrowLeft']) moveX -= 1;
+            if (keys['KeyD'] || keys['ArrowRight']) moveX += 1;
+
+            if (joyInput.active) {
+                moveX = joyInput.x;
+                moveY = joyInput.y;
+            } else if (moveX === 0 && moveY === 0 && targetMovePoint) {
+                const dx = targetMovePoint.x - state.rick.x;
+                const dy = targetMovePoint.y - state.rick.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 8) {
+                    moveX = dx / dist;
+                    moveY = dy / dist;
+                } else {
+                    targetMovePoint = null;
+                }
+            }
+
+            const len = Math.hypot(moveX, moveY);
+            if (len > 0.05) {
+                if (len > 1) {
+                    moveX /= len;
+                    moveY /= len;
+                }
+                state.rick.x += moveX * state.rick.speed * dt;
+                state.rick.y += moveY * state.rick.speed * dt;
+                state.rick.x = Math.max(100, Math.min(WORLD_W - 100, state.rick.x));
+                state.rick.y = Math.max(150, Math.min(WORLD_H - 100, state.rick.y));
+
+                if (Math.abs(moveX) > 0.1) state.rick.facing = moveX > 0 ? 1 : -1;
+                state.rick.walkPhase += dt * 13.5;
+
+                const lastPt = state.rickTrail[0];
+                if (!lastPt || Math.hypot(state.rick.x - lastPt.x, state.rick.y - lastPt.y) > 10) {
+                    state.rickTrail.unshift({ x: state.rick.x, y: state.rick.y });
+                    if (state.rickTrail.length > 25) state.rickTrail.pop();
+                }
+
+                if (performance.now() - state.lastStepSoundTime > 260) {
+                    playSfx('step');
+                    state.lastStepSoundTime = performance.now();
+                }
+            } else {
+                state.rick.walkPhase = 0;
+            }
+
+            // Плавное следование Морти по траектории шагов Рика
+            const trailTarget = state.rickTrail[5] || {
+                x: state.rick.x - state.rick.facing * 54,
+                y: state.rick.y + 12
+            };
+            const mdx = trailTarget.x - state.morty.x;
+            const mdy = trailTarget.y - state.morty.y;
+            const mDist = Math.hypot(mdx, mdy);
+
+            if (mDist > 8) {
+                const mSpeed = Math.min(state.rick.speed * 0.98, mDist * 4.5);
+                state.morty.x += (mdx / mDist) * mSpeed * dt;
+                state.morty.y += (mdy / mDist) * mSpeed * dt;
+                if (Math.abs(mdx) > 2) state.morty.facing = mdx > 0 ? 1 : -1;
+                state.morty.walkPhase += dt * 14.5;
+            } else {
+                state.morty.walkPhase = 0;
+                const lookTarget = state.nearestEntity || state.rick;
+                state.morty.facing = lookTarget.x >= state.morty.x ? 1 : -1;
+            }
+
+            // Периодические ИИ-мысли Морти
+            state.ambientThoughtTimer -= dt;
+            if (state.ambientThoughtTimer <= 0) {
+                state.ambientThoughtTimer = 18;
+                if (state.morty.speechTimer <= 0) {
+                    const thought = MORTY_AMBIENT_THOUGHTS[state.ambientThoughtIdx % MORTY_AMBIENT_THOUGHTS.length];
+                    state.ambientThoughtIdx++;
+                    state.morty.speechBubble = thought;
+                    state.morty.speechTimer = 5.5;
+                }
+            }
+
+            // Частицы
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const p = state.particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+                if (p.life <= 0) state.particles.splice(i, 1);
+            }
+
+            if (state.rick.speechTimer > 0) state.rick.speechTimer -= dt;
+            if (state.morty.speechTimer > 0) state.morty.speechTimer -= dt;
+            if (state.screenFlash > 0) state.screenFlash = Math.max(0, state.screenFlash - dt * 1.4);
+
+            // Вращение портала и автоматический вход при шаге в центр
+            if (state.portal) {
+                state.portal.angle += dt * 3.4;
+                if (Math.random() < 0.25) {
+                    spawnParticles(state.portal.x + (Math.random() - 0.5) * 40, state.portal.y - 20, "#39ff14", 1);
+                }
+                if (state.portal.isSpawnRift) {
+                    state.portal.lifeTimer -= dt;
+                    if (state.portal.lifeTimer <= 0) state.portal = null;
+                } else {
+                    const dPortal = Math.hypot(state.rick.x - state.portal.x, state.rick.y - state.portal.y);
+                    if (dPortal < 44 && !state.portal.isLoading) {
+                        if (state.portal.isReturnPortal) returnToGarageDirect();
+                        else if (state.portal.targetWorldData) enterGeneratedWorld(state.portal.targetWorldData);
+                        return;
+                    }
+                }
+            }
+
+            // Движение призванных в RP-режиме персонажей (кондиционеры гудят и дуют холодным паром)
+            for (let i = 0; i < state.spawnedChars.length; i++) {
+                const c = state.spawnedChars[i];
+                if (c.archetype === "air_conditioner") {
+                    c.walkPhase += dt * 18;
+                    if (Math.random() < 0.16) {
+                        spawnParticles(c.x + (Math.random() - 0.5) * 34, c.y - 24, "#a6eee6", 1);
+                    }
+                    continue;
+                }
+                c.orbitAngle += dt * (c.archetype === "meeseeks" ? 2.2 : 1.05);
+                const targetX = state.rick.x + Math.cos(c.orbitAngle + i * 0.55) * c.orbitRadius;
+                const targetY = state.rick.y + Math.sin(c.orbitAngle + i * 0.55) * (c.orbitRadius * 0.65);
+
+                const dx = targetX - c.x;
+                const dy = targetY - c.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist > 6) {
+                    const speed = Math.min(230, dist * 3.5);
+                    c.x += (dx / dist) * speed * dt;
+                    c.y += (dy / dist) * speed * dt;
+                    if (Math.abs(dx) > 1.5) c.facing = dx > 0 ? 1 : -1;
+                    c.walkPhase += dt * 14;
+                } else {
+                    c.walkPhase = 0;
+                    c.facing = state.rick.x >= c.x ? 1 : -1;
+                }
+            }
+
+            // Поиск ближайшего интерактивного объекта + автоматический диалог при подходе
+            let closest = null;
+            let closestDist = 105;
+            for (const ent of state.entities) {
+                if (ent.kind === 'DECOR' || ent.kind === 'ZONE' || ent.kind === 'DRIVEWAY' || ent.kind === 'RUG' || ent.kind === 'OIL_STAIN') continue;
+                const d = Math.hypot(state.rick.x - ent.x, state.rick.y - ent.y);
+                if (d < closestDist) {
+                    closestDist = d;
+                    closest = ent;
+                }
+            }
+            state.nearestEntity = closest;
+
+            if (closest && closestDist < 88) {
+                if (state.activeProximityId !== closest.id) {
+                    state.activeProximityId = closest.id;
+                    triggerEntityConversation(closest, false);
+                }
+            } else if (state.activeProximityId) {
+                const prevEnt = state.entities.find(e => e.id === state.activeProximityId);
+                if (!prevEnt || Math.hypot(state.rick.x - prevEnt.x, state.rick.y - prevEnt.y) > 135) {
+                    state.activeProximityId = null;
+                }
+            }
+
+            const promptBox = document.getElementById('interact-prompt');
+            const promptText = document.getElementById('interact-prompt-text');
+
+            if (state.portal && !state.portal.isLoading && !state.portal.isSpawnRift && Math.hypot(state.rick.x - state.portal.x, state.rick.y - state.portal.y) < 95) {
+                promptBox.classList.remove('hidden');
+                promptText.textContent = state.portal.isReturnPortal ? "Вернуться в Гараж C-137" : "Зайти в Портал!";
+            } else if (closest) {
+                promptBox.classList.remove('hidden');
+                if (closest.id === "workbench_gun" && !state.hasPortalGun) {
+                    promptText.textContent = "Взять Портальную пушку со стола!";
+                } else {
+                    promptText.textContent = `${closest.kind === 'NPC' ? 'Поговорить:' : 'Осмотреть:'} ${closest.name}`;
+                }
+            } else {
+                promptBox.classList.add('hidden');
+            }
+        }
+
+        // ==========================================
+        // 11. 2.5D ОТРИСОВКА СЦЕНЫ, ЗЕЛЁНОЙ ТРАВЫ И ПЕРСОНАЖЕЙ
+        // ==========================================
+        function render() {
+            if (!ctx || !state.currentDimension) return;
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+
+            const w = viewportW;
+            const h = viewportH;
+
+            const camX = state.rick.x - w / 2;
+            const camY = state.rick.y - h / 2;
+
+            ctx.fillStyle = state.currentDimension.skyHorizon || "#1e5631";
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.save();
+            ctx.translate(-camX, -camY);
+
+            // Наклонная 2.5D платформа локации (в гараже — сочная зелёная лужайка!)
+            ctx.fillStyle = state.currentDimension.groundColor;
+            drawRoundRect(ctx, 60, 100, WORLD_W - 120, WORLD_H - 160, 48);
+            ctx.fill();
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = "#000000";
+            ctx.stroke();
+
+            // Сетка пола
+            ctx.strokeStyle = state.currentDimension.gridColor;
+            ctx.lineWidth = 2;
+            for (let gx = 120; gx < WORLD_W - 120; gx += 120) {
+                ctx.beginPath();
+                ctx.moveTo(gx, 110);
+                ctx.lineTo(gx, WORLD_H - 70);
+                ctx.stroke();
+            }
+            for (let gy = 140; gy < WORLD_H - 70; gy += 74) {
+                ctx.beginPath();
+                ctx.moveTo(70, gy);
+                ctx.lineTo(WORLD_W - 70, gy);
+                ctx.stroke();
+            }
+
+            // Пучки травинок и цветочки на зелёной лужайке
+            for (const g of state.grassTufts) {
+                ctx.save();
+                ctx.translate(g.x, g.y);
+                ctx.scale(g.scale, g.scale);
+                ctx.strokeStyle = "#166534";
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                ctx.moveTo(-6, 0);
+                ctx.lineTo(-9, -9);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -11);
+                ctx.moveTo(6, 0);
+                ctx.lineTo(9, -8);
+                ctx.stroke();
+
+                if (g.hasFlower) {
+                    ctx.fillStyle = g.flowerColor;
+                    ctx.beginPath();
+                    safeArc(ctx, 0, -12, 3);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            // Напольные зоны гаража и подъездная дорожка
+            for (const ent of state.entities) {
+                if (ent.kind === 'DRIVEWAY') {
+                    ctx.fillStyle = ent.color;
+                    drawRoundRect(ctx, ent.x - ent.w / 2, ent.y - ent.h / 2, ent.w, ent.h, 14);
+                    ctx.fill();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = "#64748b";
+                    ctx.stroke();
+
+                    ctx.strokeStyle = "#94a3b8";
+                    ctx.lineWidth = 2;
+                    for (let py = ent.y - ent.h / 2 + 90; py < ent.y + ent.h / 2 - 40; py += 95) {
+                        ctx.beginPath();
+                        ctx.moveTo(ent.x - ent.w / 2 + 12, py);
+                        ctx.lineTo(ent.x + ent.w / 2 - 12, py);
+                        ctx.stroke();
+                    }
+                } else if (ent.kind === 'ZONE') {
+                    // Задняя стена гаража
+                    ctx.fillStyle = "#334155";
+                    drawRoundRect(ctx, ent.x - ent.w / 2, ent.y - ent.h / 2 - 75, ent.w, 85, 16);
+                    ctx.fill();
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = "#0f172a";
+                    ctx.stroke();
+
+                    // Бетонный пол гаража
+                    ctx.fillStyle = ent.color;
+                    drawRoundRect(ctx, ent.x - ent.w / 2, ent.y - ent.h / 2, ent.w, ent.h, 20);
+                    ctx.fill();
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = "#111827";
+                    ctx.stroke();
+
+                    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(ent.x - ent.w / 2 + 18, ent.y - ent.h / 2 + 18, ent.w - 36, ent.h - 36);
+
+                    ctx.fillStyle = "rgba(15,23,42,0.45)";
+                    ctx.font = "bold 17px monospace";
+                    ctx.textAlign = "center";
+                    ctx.fillText(ent.label, ent.x, ent.y + ent.h / 2 - 14);
+                } else if (ent.kind === 'OIL_STAIN') {
+                    ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
+                    ctx.beginPath();
+                    safeEllipse(ctx, ent.x, ent.y, ent.rx, ent.ry, 0.15);
+                    ctx.fill();
+                } else if (ent.kind === 'RUG') {
+                    ctx.fillStyle = ent.color;
+                    ctx.strokeStyle = ent.border;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    safeEllipse(ctx, ent.x, ent.y, ent.w / 2, ent.h / 2);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            }
+
+            if (targetMovePoint) {
+                ctx.strokeStyle = "#39ff14";
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                safeEllipse(ctx, targetMovePoint.x, targetMovePoint.y, 18, 10);
+                ctx.stroke();
+            }
+
+            if (state.portal) drawPortal25D(state.portal);
+
+            // Y-сортировка глубины всех объектов и персонажей
+            const renderQueue = [];
+            for (const ent of state.entities) {
+                if (ent.kind !== 'ZONE' && ent.kind !== 'DRIVEWAY' && ent.kind !== 'RUG' && ent.kind !== 'OIL_STAIN') {
+                    renderQueue.push({ type: 'ENTITY', y: ent.y, data: ent });
+                }
+            }
+            for (const c of state.spawnedChars) {
+                renderQueue.push({ type: 'SPAWNED', y: c.y, data: c });
+            }
+            renderQueue.push({ type: 'RICK', y: state.rick.y });
+            renderQueue.push({ type: 'MORTY', y: state.morty.y });
+            renderQueue.sort((a, b) => a.y - b.y);
+
+            for (const item of renderQueue) {
+                if (item.type === 'ENTITY') drawEntity25D(item.data);
+                else if (item.type === 'SPAWNED') drawSpawnedCharacter25D(item.data);
+                else if (item.type === 'RICK') drawRick25D();
+                else if (item.type === 'MORTY') drawMorty25D();
+            }
+
+            for (const p of state.particles) {
+                ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                safeArc(ctx, p.x, p.y, p.size);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+
+            if (state.rick.speechTimer > 0 && state.rick.speechBubble) {
+                drawSpeechBubble(state.rick.x, state.rick.y - 110, state.rick.speechBubble, "#a6eee6");
+            }
+            if (state.morty.speechTimer > 0 && state.morty.speechBubble) {
+                const mortyBubbleY = state.morty.appearance === "tree" ? state.morty.y - 125 : state.morty.y - 94;
+                drawSpeechBubble(state.morty.x, mortyBubbleY, state.morty.speechBubble, "#f0e14a");
+            }
+
+            ctx.restore();
+
+            if (state.screenFlash > 0) {
+                ctx.fillStyle = `rgba(57, 255, 20, ${state.screenFlash * 0.35})`;
+                ctx.fillRect(0, 0, w, h);
+            }
+        }
+
+        function drawPortal25D(portal) {
+            ctx.save();
+            ctx.translate(portal.x, portal.y);
+
+            ctx.fillStyle = "rgba(57, 255, 20, 0.25)";
+            ctx.beginPath();
+            safeEllipse(ctx, 0, 26, 54, 22);
+            ctx.fill();
+
+            ctx.save();
+            ctx.translate(0, -18);
+            const r = Math.max(10, portal.radius || 56);
+            const grad = ctx.createRadialGradient(0, 0, 5, 0, 0, r);
+            grad.addColorStop(0, "#ffffff");
+            grad.addColorStop(0.35, "#39ff14");
+            grad.addColorStop(0.75, "#97ce4c");
+            grad.addColorStop(1, "rgba(22, 101, 52, 0.1)");
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            safeEllipse(ctx, 0, 0, r * 0.72, r * 1.06);
+            ctx.fill();
+
+            ctx.rotate(portal.angle || 0);
+            ctx.strokeStyle = "#064e3b";
+            ctx.lineWidth = 3;
+            for (let i = 0; i < 3; i++) {
+                ctx.rotate((Math.PI * 2) / 3);
+                ctx.beginPath();
+                safeArc(ctx, 0, 0, 16 + i * 9, 0, Math.PI * 1.2);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            ctx.font = "bold 12px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#ffffff";
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 3.5;
+            const label = portal.isSpawnRift
+                ? "⚡ Разлом призыва RP!"
+                : (portal.isLoading
+                    ? "⏳ Калибровка координат..."
+                    : (portal.isReturnPortal ? "🌀 В Гараж C-137" : "🌀 Войти в портал!"));
+            ctx.strokeText(label, 0, -84);
+            ctx.fillText(label, 0, -84);
+
+            ctx.restore();
+        }
+
+        function drawRick25D() {
+            const r = state.rick;
+            const bob = Math.abs(Math.sin(r.walkPhase)) * 5;
+            const tilt = Math.sin(r.walkPhase) * 0.08;
+            const scale = r.appearance === "tiny" ? 0.72 : 1;
+
+            ctx.save();
+            ctx.translate(r.x, r.y);
+            ctx.scale(scale, scale);
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.44)";
+            ctx.beginPath();
+            safeEllipse(ctx, 0, 4, 24, 12);
+            ctx.fill();
+
+            ctx.translate(0, -bob);
+            ctx.rotate(tilt);
+
+            if (r.appearance === "ghost") ctx.globalAlpha = 0.55;
+
+            if (r.appearance === "pickle") {
+                ctx.fillStyle = "#3f7d20";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 3;
+                drawRoundRect(ctx, -16, -78, 32, 74, 16);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#65a30d";
+                ctx.beginPath();
+                safeArc(ctx, -9, -32, 2.5);
+                safeArc(ctx, 10, -24, 2.5);
+                safeArc(ctx, -7, -14, 2.2);
+                safeArc(ctx, 8, -42, 2.2);
+                ctx.fill();
+
+                const lookOffset = r.facing * 2.5;
+                ctx.strokeStyle = "#a6eee6";
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(-9 + lookOffset, -60);
+                ctx.lineTo(9 + lookOffset, -60);
+                ctx.stroke();
+
+                ctx.fillStyle = "#ffffff";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                safeArc(ctx, -5 + lookOffset, -53, 4.6);
+                safeArc(ctx, 5 + lookOffset, -53, 4.6);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(-6 + lookOffset, -54, 2, 2);
+                ctx.fillRect(4 + lookOffset, -54, 2, 2);
+
+                ctx.fillStyle = "#991b1b";
+                ctx.beginPath();
+                safeEllipse(ctx, lookOffset, -41, 6, 4.5);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+                return;
+            }
+
+            const legSwing = Math.sin(r.walkPhase) * 5;
+            ctx.fillStyle = r.appearance === "toxic" ? "#14532d" : "#4b5563";
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 2.5;
+            drawRoundRect(ctx, -11, -18 + legSwing, 8, 20, 4);
+            ctx.fill();
+            ctx.stroke();
+            drawRoundRect(ctx, 3, -18 - legSwing, 8, 20, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            if (r.shirtless) {
+                ctx.fillStyle = "#e8cbb1";
+                drawRoundRect(ctx, -14, -46, 28, 32, 8);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = r.appearance === "cyborg" ? "#475569" : (r.appearance === "toxic" ? "#22c55e" : "#ffffff");
+                ctx.beginPath();
+                ctx.moveTo(-16, -48);
+                ctx.lineTo(16, -48);
+                ctx.lineTo(21, -12);
+                ctx.lineTo(-21, -12);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = r.appearance === "toxic" ? "#86efac" : "#a6eee6";
+                ctx.fillRect(-6, -46, 12, 32);
+            }
+
+            if (state.hasPortalGun) {
+                const gunX = r.facing * 20;
+                ctx.fillStyle = "#e5e7eb";
+                drawRoundRect(ctx, gunX - 7, -34, 14, 9, 3);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = "#39ff14";
+                ctx.beginPath();
+                safeArc(ctx, gunX, -35, 4.5);
+                ctx.fill();
+            }
+
+            ctx.fillStyle = r.appearance === "tree" ? "#22c55e" : (r.appearance === "toxic" ? "#4ade80" : "#a6eee6");
+            ctx.beginPath();
+            ctx.moveTo(0, -92);
+            ctx.lineTo(-14, -74);
+            ctx.lineTo(-28, -78);
+            ctx.lineTo(-18, -62);
+            ctx.lineTo(-28, -50);
+            ctx.lineTo(28, -50);
+            ctx.lineTo(18, -62);
+            ctx.lineTo(28, -78);
+            ctx.lineTo(14, -74);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = r.appearance === "cyborg" ? "#94a3b8" : (r.appearance === "toxic" ? "#86efac" : "#e8cbb1");
+            drawRoundRect(ctx, -13, -76, 26, 32, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            const lookOffset = r.facing * 3;
+            if (r.appearance === "cyborg") {
+                ctx.fillStyle = "#ef4444";
+                ctx.fillRect(-9 + lookOffset, -63, 18, 6);
+            } else {
+                ctx.strokeStyle = r.appearance === "toxic" ? "#15803d" : "#a6eee6";
+                ctx.lineWidth = 3.5;
+                ctx.beginPath();
+                ctx.moveTo(-8 + lookOffset, -65);
+                ctx.lineTo(8 + lookOffset, -65);
+                ctx.stroke();
+
+                ctx.fillStyle = "#ffffff";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 1.8;
+                ctx.beginPath();
+                safeArc(ctx, -5 + lookOffset, -59, 4.5);
+                safeArc(ctx, 5 + lookOffset, -59, 4.5);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(-6 + lookOffset, -60, 2, 2);
+                ctx.fillRect(4 + lookOffset, -60, 2, 2);
+            }
+
+            ctx.strokeStyle = "#97ce4c";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(4 + lookOffset, -49);
+            ctx.lineTo(5 + lookOffset, -42);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawMorty25D() {
+            const m = state.morty;
+            const bob = Math.abs(Math.sin(m.walkPhase)) * 4.5;
+            const tilt = Math.sin(m.walkPhase) * 0.09;
+            const scale = m.scale || 1;
+
+            ctx.save();
+            ctx.translate(m.x, m.y);
+            ctx.scale(scale, scale);
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+            ctx.beginPath();
+            safeEllipse(ctx, 0, 3, 22, 11);
+            ctx.fill();
+
+            ctx.translate(0, -bob);
+            ctx.rotate(tilt);
+
+            if (m.appearance === "tree") {
+                ctx.fillStyle = "#5c3a21";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 3;
+                drawRoundRect(ctx, -14, -46, 28, 46, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(-14, -34);
+                ctx.lineTo(-28, -48);
+                ctx.moveTo(14, -34);
+                ctx.lineTo(28, -48);
+                ctx.stroke();
+
+                ctx.fillStyle = "#22c55e";
+                ctx.beginPath();
+                safeArc(ctx, 0, -76, 34);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                safeArc(ctx, -22, -64, 22);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                safeArc(ctx, 22, -64, 22);
+                ctx.fill();
+                ctx.stroke();
+
+                const lookOffset = m.facing * 2;
+                ctx.fillStyle = "#ffffff";
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                safeArc(ctx, -5 + lookOffset, -32, 4.5);
+                safeArc(ctx, 5 + lookOffset, -32, 4.5);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#000000";
+                ctx.beginPath();
+                safeArc(ctx, -5 + lookOffset, -32, 1.5);
+                safeArc(ctx, 5 + lookOffset, -32, 1.5);
+                ctx.fill();
+
+                ctx.beginPath();
+                safeArc(ctx, lookOffset, -21, 4);
+                ctx.stroke();
+
+                ctx.restore();
+                return;
+            }
+
+            if (m.appearance === "pickle") {
+                ctx.fillStyle = "#65a30d";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 2.8;
+                drawRoundRect(ctx, -13, -58, 26, 56, 13);
+                ctx.fill();
+                ctx.stroke();
+
+                const lookOffset = m.facing * 2;
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath();
+                safeArc(ctx, -5 + lookOffset, -34, 4);
+                safeArc(ctx, 5 + lookOffset, -34, 4);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = "#000000";
+                ctx.beginPath();
+                safeArc(ctx, -5 + lookOffset, -34, 1.4);
+                safeArc(ctx, 5 + lookOffset, -34, 1.4);
+                ctx.fill();
+
+                ctx.restore();
+                return;
+            }
+
+            if (m.appearance === "ghost") ctx.globalAlpha = 0.55;
+
+            const legSwing = Math.sin(m.walkPhase) * 4;
+            ctx.fillStyle = m.appearance === "robot" ? "#475569" : "#3b82f6";
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 2.5;
+            drawRoundRect(ctx, -9, -15 + legSwing, 7, 16, 3);
+            ctx.fill();
+            ctx.stroke();
+            drawRoundRect(ctx, 2, -15 - legSwing, 7, 16, 3);
+            ctx.fill();
+            ctx.stroke();
+
+            if (m.shirtless || m.appearance === "shirtless") ctx.fillStyle = "#f2d3b3";
+            else if (m.appearance === "robot") ctx.fillStyle = "#94a3b8";
+            else if (m.appearance === "cronenberg") ctx.fillStyle = "#be185d";
+            else if (m.appearance === "evil") ctx.fillStyle = "#1e293b";
+            else ctx.fillStyle = "#f0e14a";
+
+            drawRoundRect(ctx, -14, -40, 28, 27, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            if (m.shirtless || m.appearance === "shirtless") {
+                ctx.fillStyle = "#c08463";
+                ctx.beginPath();
+                safeArc(ctx, -6, -29, 1.6);
+                safeArc(ctx, 6, -29, 1.6);
+                ctx.fill();
+            }
+
+            ctx.fillStyle = m.appearance === "robot" ? "#64748b" : "#8c5828";
+            ctx.beginPath();
+            safeArc(ctx, 0, -56, 19);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = m.appearance === "robot" ? "#cbd5e1" : (m.appearance === "cronenberg" ? "#f472b6" : "#f2d3b3");
+            ctx.beginPath();
+            safeArc(ctx, 0, -51, 15);
+            ctx.fill();
+            ctx.stroke();
+
+            const lookOffset = m.facing * 2.5;
+            ctx.fillStyle = "#ffffff";
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            safeArc(ctx, -5 + lookOffset, -52, 4);
+            safeArc(ctx, 5 + lookOffset, -52, 4);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#000000";
+            ctx.beginPath();
+            safeArc(ctx, -5 + lookOffset, -52, 1.3);
+            safeArc(ctx, 5 + lookOffset, -52, 1.3);
+            ctx.fill();
+
+            if (m.eyepatch || m.appearance === "evil") {
+                ctx.fillStyle = "#000000";
+                ctx.beginPath();
+                safeArc(ctx, 5 + lookOffset, -52, 4.8);
+                ctx.fill();
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-12, -58);
+                ctx.lineTo(13, -49);
+                ctx.stroke();
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(-4 + lookOffset, -43);
+            ctx.quadraticCurveTo(0 + lookOffset, -46, 4 + lookOffset, -43);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawSpawnedCharacter25D(c) {
+            const bob = Math.abs(Math.sin(c.walkPhase)) * 4.5;
+            const tilt = Math.sin(c.walkPhase) * 0.09;
+            const lookOffset = c.facing * 2.2;
+
+            ctx.save();
+            ctx.translate(c.x, c.y);
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.36)";
+            ctx.beginPath();
+            safeEllipse(ctx, 0, 3, 18, 9);
+            ctx.fill();
+
+            if (c.archetype === "air_conditioner") {
+                const vib = Math.sin(c.walkPhase * 2) * 1.1;
+                ctx.translate(vib, 0);
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 2.4;
+
+                ctx.fillStyle = "#475569";
+                ctx.fillRect(-24, -8, 10, 8);
+                ctx.strokeRect(-24, -8, 10, 8);
+                ctx.fillRect(14, -8, 10, 8);
+                ctx.strokeRect(14, -8, 10, 8);
+
+                ctx.fillStyle = "#f1f5f9";
+                drawRoundRect(ctx, -30, -52, 60, 44, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#cbd5e1";
+                ctx.fillRect(12, -48, 14, 36);
+                ctx.strokeRect(12, -48, 14, 36);
+
+                ctx.fillStyle = "#38bdf8";
+                ctx.beginPath();
+                safeArc(ctx, 19, -40, 3);
+                ctx.fill();
+
+                ctx.fillStyle = "#1e293b";
+                ctx.beginPath();
+                safeArc(ctx, -8, -30, 16);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(-8, -30);
+                ctx.rotate(c.walkPhase);
+                ctx.fillStyle = "#94a3b8";
+                for (let b = 0; b < 3; b++) {
+                    ctx.rotate((Math.PI * 2) / 3);
+                    ctx.fillRect(-2, -13, 4, 13);
+                }
+                ctx.restore();
+
+                ctx.strokeStyle = "rgba(166, 238, 230, 0.9)";
+                ctx.lineWidth = 2;
+                const wave = Math.sin(c.walkPhase * 0.6) * 4;
+                ctx.beginPath();
+                ctx.moveTo(-26, -34);
+                ctx.quadraticCurveTo(-38, -38 + wave, -48, -32);
+                ctx.moveTo(-26, -24);
+                ctx.quadraticCurveTo(-38, -20 - wave, -48, -26);
+                ctx.stroke();
+
+                ctx.restore();
+                return;
+            }
+
+            ctx.translate(0, -bob);
+            ctx.rotate(tilt);
+
+            const legSwing = Math.sin(c.walkPhase) * 4;
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 2.2;
+
+            if (c.archetype === "jessica") {
+                ctx.fillStyle = "#ea580c";
+                ctx.beginPath();
+                safeArc(ctx, 0, -52, 21);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, -19, -54, 38, 28, 12);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#f2d3b3";
+                drawRoundRect(ctx, -7, -14 + legSwing, 5, 14, 2);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, 2, -14 - legSwing, 5, 14, 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#2563eb";
+                drawRoundRect(ctx, -13, -24, 26, 12, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = c.shirtless ? "#f2d3b3" : "#ec4899";
+                drawRoundRect(ctx, -12, -39, 24, 17, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#f2d3b3";
+                ctx.beginPath();
+                safeArc(ctx, 0, -50, 14);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#ea580c";
+                ctx.beginPath();
+                safeArc(ctx, 0, -56, 14, Math.PI, Math.PI * 2);
+                ctx.fill();
+            } else if (c.archetype === "birdperson") {
+                ctx.fillStyle = "#78350f";
+                ctx.beginPath();
+                ctx.moveTo(-14, -44);
+                ctx.lineTo(-32, -24);
+                ctx.lineTo(-14, -20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(14, -44);
+                ctx.lineTo(32, -24);
+                ctx.lineTo(14, -20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#451a03";
+                drawRoundRect(ctx, -9, -16 + legSwing, 7, 17, 3);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, 2, -16 - legSwing, 7, 17, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#92400e";
+                drawRoundRect(ctx, -14, -46, 28, 32, 8);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#f2d3b3";
+                ctx.beginPath();
+                safeArc(ctx, 0, -56, 14);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#eab308";
+                ctx.beginPath();
+                safeArc(ctx, 0, -61, 14, Math.PI, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            } else if (c.archetype === "squanchy") {
+                ctx.fillStyle = "#f59e0b";
+                drawRoundRect(ctx, -8, -14 + legSwing, 6, 15, 3);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, 2, -14 - legSwing, 6, 15, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                drawRoundRect(ctx, -12, -37, 24, 24, 7);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.beginPath();
+                safeArc(ctx, 0, -49, 14);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#ea580c";
+                ctx.beginPath();
+                ctx.moveTo(-4, -62);
+                ctx.lineTo(0, -76);
+                ctx.lineTo(4, -62);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            } else if (c.archetype === "meeseeks") {
+                ctx.fillStyle = "#38bdf8";
+                drawRoundRect(ctx, -8, -16 + legSwing, 6, 17, 3);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, 2, -16 - legSwing, 6, 17, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                drawRoundRect(ctx, -12, -44, 24, 30, 8);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.beginPath();
+                safeArc(ctx, 0, -56, 14);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#f97316";
+                ctx.beginPath();
+                safeArc(ctx, 0, -71, 5);
+                ctx.fill();
+                ctx.stroke();
+            } else if (c.archetype === "poopybutthole") {
+                ctx.fillStyle = "#facc15";
+                drawRoundRect(ctx, -7, -16 + legSwing, 5, 17, 2);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, 2, -16 - legSwing, 5, 17, 2);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#2563eb";
+                drawRoundRect(ctx, -11, -24, 22, 11, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#facc15";
+                drawRoundRect(ctx, -10, -58, 20, 36, 10);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#111827";
+                ctx.fillRect(-13, -62, 26, 4);
+                ctx.fillRect(-8, -76, 16, 14);
+            } else if (
+                c.archetype === "cowboy_rick" ||
+                c.archetype === "cop_rick" ||
+                c.archetype === "cyborg_rick" ||
+                c.archetype === "toxic_rick" ||
+                c.archetype === "doofus_rick" ||
+                c.archetype === "council_rick"
+            ) {
+                ctx.fillStyle = c.archetype === "toxic_rick" ? "#14532d" : "#4b5563";
+                drawRoundRect(ctx, -9, -15 + legSwing, 7, 16, 3);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, 2, -15 - legSwing, 7, 16, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                let coatColor = "#ffffff";
+                if (c.archetype === "cop_rick") coatColor = "#1d4ed8";
+                else if (c.archetype === "cowboy_rick") coatColor = "#92400e";
+                else if (c.archetype === "cyborg_rick") coatColor = "#475569";
+                else if (c.archetype === "toxic_rick") coatColor = "#22c55e";
+                else if (c.archetype === "council_rick") coatColor = "#64748b";
+
+                ctx.fillStyle = c.shirtless ? "#e8cbb1" : coatColor;
+                drawRoundRect(ctx, -14, -42, 28, 28, 7);
+                ctx.fill();
+                ctx.stroke();
+
+                const hairCol = c.archetype === "toxic_rick" ? "#4ade80" : (c.archetype === "doofus_rick" ? "#93c5fd" : "#a6eee6");
+                ctx.fillStyle = hairCol;
+                ctx.beginPath();
+                ctx.moveTo(0, -82);
+                ctx.lineTo(-12, -66);
+                ctx.lineTo(-24, -70);
+                ctx.lineTo(-15, -56);
+                ctx.lineTo(-24, -46);
+                ctx.lineTo(24, -46);
+                ctx.lineTo(15, -56);
+                ctx.lineTo(24, -70);
+                ctx.lineTo(12, -66);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = c.archetype === "toxic_rick" ? "#86efac" : (c.archetype === "cyborg_rick" ? "#94a3b8" : "#e8cbb1");
+                drawRoundRect(ctx, -11, -68, 22, 27, 10);
+                ctx.fill();
+                ctx.stroke();
+
+                if (c.archetype === "cowboy_rick") {
+                    ctx.fillStyle = "#78350f";
+                    ctx.beginPath();
+                    safeEllipse(ctx, 0, -68, 22, 5);
+                    ctx.fill();
+                    ctx.stroke();
+                    drawRoundRect(ctx, -11, -80, 22, 13, 4);
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (c.archetype === "cop_rick") {
+                    ctx.fillStyle = "#1e3a8a";
+                    drawRoundRect(ctx, -13, -76, 26, 9, 3);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = "#facc15";
+                    ctx.fillRect(-3, -74, 6, 4);
+                } else if (c.archetype === "cyborg_rick") {
+                    ctx.fillStyle = "#ef4444";
+                    ctx.fillRect(-8 + lookOffset, -56, 16, 5);
+                }
+            } else if (c.archetype === "summer" || c.archetype === "jerry" || c.archetype === "beth") {
+                ctx.fillStyle = c.archetype === "summer" ? "#f8fafc" : "#1e3a8a";
+                drawRoundRect(ctx, -8, -15 + legSwing, 6, 16, 3);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, 2, -15 - legSwing, 6, 16, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = c.archetype === "summer" ? "#f472b6" : (c.archetype === "jerry" ? "#16a34a" : "#dc2626");
+                drawRoundRect(ctx, -13, -40, 26, 26, 7);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = c.archetype === "summer" ? "#ea580c" : (c.archetype === "jerry" ? "#78350f" : "#fde047");
+                ctx.beginPath();
+                safeArc(ctx, 0, -54, 17);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#f2d3b3";
+                ctx.beginPath();
+                safeArc(ctx, 0, -50, 14);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = "#2563eb";
+                drawRoundRect(ctx, -8, -14 + legSwing, 6, 15, 3);
+                ctx.fill();
+                ctx.stroke();
+                drawRoundRect(ctx, 2, -14 - legSwing, 6, 15, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = c.shirtless ? "#f2d3b3" : (c.archetype === "custom" ? c.shirtColor : (c.angry ? "#1e293b" : "#f0e14a"));
+                drawRoundRect(ctx, -12, -37, 24, 25, 7);
+                ctx.fill();
+                ctx.stroke();
+
+                if (c.shirtless) {
+                    ctx.fillStyle = "#c08463";
+                    ctx.beginPath();
+                    safeArc(ctx, -5, -27, 1.4);
+                    safeArc(ctx, 5, -27, 1.4);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = c.archetype === "custom" ? c.hairColor : "#8c5828";
+                ctx.beginPath();
+                safeArc(ctx, 0, -52, 16);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#f2d3b3";
+                ctx.beginPath();
+                safeArc(ctx, 0, -48, 13);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            const eyeY = (c.archetype === "meeseeks" || c.archetype === "birdperson") ? -56 : -49;
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            safeArc(ctx, -4 + lookOffset, eyeY, 3.5);
+            safeArc(ctx, 4 + lookOffset, eyeY, 3.5);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#000000";
+            ctx.beginPath();
+            safeArc(ctx, -4 + lookOffset, eyeY, 1.2);
+            safeArc(ctx, 4 + lookOffset, eyeY, 1.2);
+            ctx.fill();
+
+            if (c.angry) {
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-8 + lookOffset, eyeY - 5);
+                ctx.lineTo(-1 + lookOffset, eyeY - 2);
+                ctx.moveTo(8 + lookOffset, eyeY - 5);
+                ctx.lineTo(1 + lookOffset, eyeY - 2);
+                ctx.stroke();
+            }
+            if (c.eyepatch) {
+                ctx.fillStyle = "#000000";
+                ctx.beginPath();
+                safeArc(ctx, 4 + lookOffset, eyeY, 4.2);
+                ctx.fill();
+            }
+
+            if (state.spawnedChars.length <= 12) {
+                ctx.font = "bold 10px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = "#f0e14a";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 3;
+                ctx.strokeText(c.name, 0, -76);
+                ctx.fillText(c.name, 0, -76);
+            }
+
+            ctx.restore();
+        }
+
+        function drawEntity25D(ent) {
+            ctx.save();
+            ctx.translate(ent.x, ent.y);
+
+            const isHighlighted = state.nearestEntity && state.nearestEntity.id === ent.id;
+            const r = ent.radius || 38;
+
+            if (isHighlighted || (ent.id === "workbench_gun" && !state.hasPortalGun)) {
+                ctx.strokeStyle = "#39ff14";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                safeEllipse(ctx, 0, 4, r + 10, (r + 10) * 0.55);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.36)";
+            ctx.beginPath();
+            safeEllipse(ctx, 0, 4, r, r * 0.52);
+            ctx.fill();
+
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 3;
+
+            if (ent.shape === 'WORKBENCH_GUN') {
+                ctx.fillStyle = "#334155";
+                ctx.fillRect(-40, -24, 80, 24);
+                ctx.strokeRect(-40, -24, 80, 24);
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -44, -40, 88, 22, 6);
+                ctx.fill();
+                ctx.stroke();
+
+                if (!state.hasPortalGun) {
+                    const pulse = Math.sin(performance.now() * 0.006) * 3;
+                    ctx.fillStyle = "#f8fafc";
+                    drawRoundRect(ctx, -12, -52 + pulse, 24, 12, 4);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = "#39ff14";
+                    ctx.beginPath();
+                    safeArc(ctx, 0, -56 + pulse, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            } else if (ent.shape === 'BOX') {
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -28, -44, 56, 44, 6);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = ent.accent;
+                ctx.fillRect(-22, -30, 44, 15);
+                ctx.fillStyle = "#000000";
+                ctx.font = "bold 8px monospace";
+                ctx.textAlign = "center";
+                ctx.fillText("TIME STUFF", 0, -20);
+            } else if (ent.shape === 'DOOR') {
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -24, -76, 48, 76, 6);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = ent.accent;
+                ctx.beginPath();
+                safeArc(ctx, 15, -36, 4);
+                ctx.fill();
+            } else if (ent.shape === 'SHELF') {
+                ctx.fillStyle = ent.color;
+                ctx.fillRect(-32, -62, 64, 62);
+                ctx.strokeRect(-32, -62, 64, 62);
+                ctx.fillStyle = ent.accent;
+                ctx.fillRect(-24, -52, 14, 16);
+                ctx.fillRect(8, -52, 14, 16);
+                ctx.fillStyle = "#97ce4c";
+                ctx.fillRect(-16, -28, 32, 16);
+            } else if (ent.shape === 'BUTTER_BOT') {
+                ctx.fillStyle = "#475569";
+                ctx.fillRect(-12, -8, 24, 8);
+                ctx.strokeRect(-12, -8, 24, 8);
+                ctx.fillStyle = ent.color;
+                ctx.fillRect(-3, -34, 6, 26);
+                drawRoundRect(ctx, -14, -48, 28, 16, 4);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = ent.accent;
+                ctx.beginPath();
+                safeArc(ctx, -5, -40, 3);
+                safeArc(ctx, 5, -40, 3);
+                ctx.fill();
+            } else if (ent.shape === 'MAILBOX') {
+                ctx.fillStyle = "#78350f";
+                ctx.fillRect(-4, -34, 8, 34);
+                ctx.strokeRect(-4, -34, 8, 34);
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -18, -54, 36, 22, 8);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = ent.accent;
+                ctx.fillRect(10, -64, 5, 14);
+                ctx.strokeRect(10, -64, 5, 14);
+            } else if (ent.shape === 'BUSH') {
+                ctx.fillStyle = ent.color;
+                ctx.beginPath();
+                safeArc(ctx, -12, -16, 18);
+                safeArc(ctx, 12, -16, 18);
+                safeArc(ctx, 0, -24, 22);
+                ctx.fill();
+                ctx.stroke();
+            } else if (ent.shape === 'TREE') {
+                ctx.fillStyle = "#5c3a21";
+                ctx.fillRect(-8, -32, 16, 34);
+                ctx.strokeRect(-8, -32, 16, 34);
+                ctx.fillStyle = ent.color;
+                ctx.beginPath();
+                safeArc(ctx, 0, -52, 34);
+                ctx.fill();
+                ctx.stroke();
+            } else if (ent.shape === 'CITADEL_WINDOW') {
+                ctx.fillStyle = "#090d16";
+                drawRoundRect(ctx, -38, -88, 76, 84, 12);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = "#39ff14";
+                ctx.beginPath();
+                safeArc(ctx, -16, -64, 3);
+                safeArc(ctx, 18, -42, 4);
+                ctx.fill();
+                ctx.fillStyle = "#a6eee6";
+                ctx.beginPath();
+                safeArc(ctx, 8, -70, 6);
+                ctx.fill();
+            } else if (ent.shape === 'WAFFLE_MACHINE') {
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -36, -54, 72, 54, 8);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = ent.accent;
+                ctx.fillRect(-26, -42, 52, 18);
+                ctx.fillStyle = "#000000";
+                ctx.font = "bold 9px monospace";
+                ctx.textAlign = "center";
+                ctx.fillText("WAFFLES", 0, -30);
+            } else if (ent.shape === 'DORPEIKA_MACHINE') {
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -28, -68, 56, 68, 8);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = ent.accent;
+                ctx.fillRect(-20, -56, 40, 28);
+                ctx.strokeRect(-20, -56, 40, 28);
+            } else if (ent.shape === 'AIR_CONDITIONER') {
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -32, -52, 64, 48, 6);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = "#1e293b";
+                ctx.beginPath();
+                safeArc(ctx, -8, -28, 16);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = ent.accent;
+                ctx.fillRect(14, -44, 12, 32);
+                ctx.strokeRect(14, -44, 12, 32);
+            } else if (ent.shape === 'COP_RICK' || ent.shape === 'WORKER_RICK' || ent.shape === 'COUNCIL_RICK') {
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -16, -46, 32, 44, 8);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = "#a6eee6";
+                ctx.beginPath();
+                safeArc(ctx, 0, -62, 18);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = "#e8cbb1";
+                drawRoundRect(ctx, -11, -66, 22, 24, 8);
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = ent.color;
+                drawRoundRect(ctx, -22, -56, 44, 54, 16);
+                ctx.fill();
+                ctx.stroke();
+                ctx.fillStyle = ent.accent;
+                ctx.beginPath();
+                safeArc(ctx, 0, -36, 8);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            if (ent.kind === 'NPC' || ent.kind === 'PROP') {
+                ctx.font = "bold 11px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillStyle = isHighlighted ? "#39ff14" : "#ffffff";
+                ctx.strokeStyle = "#000000";
+                ctx.lineWidth = 3.5;
+                ctx.strokeText(ent.name, 0, -78);
+                ctx.fillText(ent.name, 0, -78);
+            }
+
+            ctx.restore();
+        }
+
+        function drawSpeechBubble(x, y, text, borderColor) {
+            ctx.save();
+            ctx.font = "600 12px sans-serif";
+
+            const maxWidth = 225;
+            const words = String(text).split(' ');
+            const lines = [];
+            let currentLine = '';
+
+            for (const word of words) {
+                const testLine = currentLine ? `${currentLine} ${word}` : word;
+                if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            if (currentLine) lines.push(currentLine);
+            const displayLines = lines.slice(0, 3);
+
+            const boxW = Math.min(maxWidth + 24, Math.max(95, Math.max(...displayLines.map(l => ctx.measureText(l).width)) + 24));
+            const boxH = displayLines.length * 16 + 14;
+            const bx = x - boxW / 2;
+            const by = y - boxH;
+
+            ctx.fillStyle = "rgba(11, 15, 28, 0.95)";
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 2.5;
+            drawRoundRect(ctx, bx, by, boxW, boxH, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = borderColor;
+            ctx.beginPath();
+            ctx.moveTo(x - 6, y);
+            ctx.lineTo(x + 6, y);
+            ctx.lineTo(x, y + 8);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = "#ffffff";
+            ctx.textAlign = "center";
+            displayLines.forEach((line, idx) => {
+                ctx.fillText(line, x, by + 18 + idx * 16);
+            });
+
+            ctx.restore();
+        }
+
+        // ==========================================
+        // 12. БРОНЕБОЙНЫЙ ИГРОВОЙ ЦИКЛ И МГНОВЕННЫЙ СТАРТ
+        // ==========================================
+        let lastFrameTime = performance.now();
+        let gameStarted = false;
+
+        function gameLoop(now) {
+            const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTime) / 1000));
+            lastFrameTime = now;
+
+            try {
+                update(dt);
+            } catch (err) {
+                console.error("Update error:", err);
+            }
+
+            try {
+                render();
+            } catch (err) {
+                console.error("Render error:", err);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function initGame() {
+            if (gameStarted) return;
+            gameStarted = true;
+            generateSafariAppIcon();
+            resizeCanvas();
+            setInteractionMode('talk');
+            initGarageWorld();
+            render();
+            lastFrameTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.getElementById('chat-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitUserDialogue();
+            }
+        });
+
+        document.getElementById('portal-prompt-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                createPortalFromPrompt();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initGame);
+        setTimeout(initGame, 50);
+    </script>
+</body>
+</html>
